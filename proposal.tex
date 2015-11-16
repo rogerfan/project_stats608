@@ -119,14 +119,14 @@
 
 \section{Problem Statement}
 
-Mixture models are a common and powerful method for clustering and distribution estimation. Data is modeled as a ``mixture'' of multiple simple distributions, most often Gaussian, where the goal is to estimate the parameters of each of the distributions. The distribution that each data point belongs to is generally thought of as a latent unobserved variable. Because the possible values of this latent variable can be extremely large, direct maximization of the likelihood is generally difficult.
+Mixture models are a common and powerful method for clustering and distribution estimation. Data is modeled as a ``mixture'' of multiple simple distributions, most often Gaussian, where the goal is to estimate the parameters of each of the distributions. The distribution that each data point belongs to is generally thought of as a latent unobserved variable. Because the set of possible values of this latent variable can be extremely large (for instance, for $n$ data points from a two-component mixture there are $2^n$ possible latent variable realizations), direct maximization of the likelihood is generally difficult.
 
 The most common method used to estimate parameters in this setting is the Expectation-Maximization (EM) algorithm \cite{dempsterlairdrubin77}. The EM algorithm is an iterative optimization method used to optimize a lower bound on the likelihood. There are, however, several issues with using the EM algorithm even in this fairly simple case. Mixture models often have multiple local optima. Since EM is a hill-climbing algorithm, it may converge to a local optimum rather than a global optima \cite{wu83}. This makes EM sensitive to the chosen starting point, and various ad-hoc methods (such as multiple start or random restart) are used in practice to attempt to mitigate this issue. It can also be slow to converge for a variety of reasons, including when the mixing coefficients are imbalanced or when there is significant overlap in the component distributions.
 
 
-\section{Related Work}
+\section{Related Work} \label{sec:related_work}
 
-Previous attempts to improve upon the EM algorithm can be found in the literature. Of particular interest is simulated annealing \cite{kirkpatrickgelattvecchi83}, a probabilistic optimization algorithm designed to find global optima. Methods similar to \cite{kirkpatrickgelattvecchi83} mimic EM, but replace the traditional ``E-step'' with a computationally attractive alternative. Such methods seek to explore the state space in a non-deterministic fashion. The non-deterministic nature of such methods makes multiple initializations unnecessary and hopefully improves the optimization by avoiding convergence to local optima.
+Previous attempts to improve upon the EM algorithm can be found in the literature. Of particular interest is simulated annealing \cite{kirkpatrickgelattvecchi83}, a probabilistic optimization algorithm designed to find global optima. Methods based on annealing tend to mimic EM, but replace the traditional ``E-step'' with a computationally attractive alternative. Such methods seek to explore the state space without directly hill-climbing, and possibly in a non-deterministic matter. This makes multiple initializations unnecessary and hopefully improves the optimization by avoiding convergence to local optima.
 
 There have been several attempts to apply annealing-inspired algorithms to mixture model estimation. The most notable algorithm is Deterministic Annealing EM (DAEM), proposed by Ueda and Nakano in 1998 \cite{uedanakano98}. As the name suggests, this algorithm replaces the stochastic nature of simulated annealing with a deterministic variant to hopefully avoid the local optima problem. Naim and Gildea proposed another deterministic algorithm very similar to DAEM that they call anti-annealing in 2012 \cite{naimgildea12} and also compare the performance of several optimization algorithms, including DAEM and conventional EM, on a mixture density estimation problem.
 
@@ -134,7 +134,7 @@ There have been several attempts to apply annealing-inspired algorithms to mixtu
 \section{Proposed Work}
 
 % potential work for us
-Similar to the works listed in section 2, we seek to create an algorithm that borrows attractive properties from both EM and non-deterministic methods.
+Similar to the works listed in Section~\ref{sec:related_work}, we seek to create an algorithm that borrows attractive properties from both EM and non-deterministic methods.
 Because calculating the likelihood conditional on a set of state variable realizations is extremely fast and easy, we can potentially re-parameterize the problem as finding the state realization that induces the highest conditional likelihood and apply simulated annealing or similar optimizers to this problem.
 
 We specifically hope to improve performance by limiting non-deterministic methods' propensity to explore ``bad'' latent states. If we can identify observations which almost certainly belong to a single latent state, we hope to avoid exploring spaces in which these observations belong to other states. If these ``bad'' states are relatively rare or already unattractive to the methods, it is certainly feasible that avoiding such states will have little or perhaps a negative impact on performance.
