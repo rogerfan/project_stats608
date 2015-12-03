@@ -4,9 +4,36 @@ from scipy.stats import multivariate_normal as mnorm
 
 
 def em_gmm(data, init_mu, init_sigma, init_mix, num_iter=100, verbose=False):
+    '''
+    Estimate Gaussian mixture models with EM algorithm.
+
+    Parameters
+    ----------
+    data : array
+        Data to cluster.
+    init_mu : array
+        Array of initial means. Each row should be a mean vector for each
+        group.
+    init_sigma : list of arrays
+        Initial covariance matrices for estimation.
+    init_mix : array
+        Initial mixing components.
+    num_iter : int, optional
+        Number of EM iterations to run. (default 100)
+    verbose : bool, optional
+        Set to true to print status updates.
+
+    Returns
+    -------
+    curr_mu : array
+    curr_sigma : list of arrays
+    curr_mix : array
+        Final estimates of the mean, covariance, and mixture components.
+
+    '''
     if len(init_mu) != len(init_sigma) or len(init_sigma) != len(init_mix):
         raise ValueError(
-            'Number of initial values needs to match number of groups.')
+            'Number of initial values needs to be consistent.')
     if not np.isclose(sum(init_mix), 1):
         raise ValueError(
             'Initial mixing components should add to 1.')
@@ -23,7 +50,7 @@ def em_gmm(data, init_mu, init_sigma, init_mix, num_iter=100, verbose=False):
     curr_mix = init_mix
 
     for iternum in range(num_iter):
-        if verbose:
+        if verbose:  # Status updates
             if np.isclose(iternum // 100, iternum / 100) and iternum != 0:
                 print()
             if np.isclose(iternum // 10, iternum / 10) and iternum != 0:
