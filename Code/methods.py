@@ -113,6 +113,27 @@ def calc_pdfs(data, mus, sigmas):
 
 
 def calc_loglik(data, pdfs, probs):
+    '''
+    Calculates the log likelihood of the data. If probs is an indicator, then
+    the log likelihood of the data is
+    ``log p(x) = sum_i sum_k probs_ik log p_k(x_i)''
+    This motivates the weighted log-likelihood to use when probs contains
+    probabilities which has the same formula.
+
+    Parameters
+    ----------
+    data : 2-d array
+    pdfs : 2-d array
+        Array of pdfs of each observation for each group.
+    probs : 2-d array
+        Array of the probability that each observation is in each group.
+
+    Returns
+    -------
+    loglik : float
+        Log likelihood of the data.
+
+    '''
     logpdfs = np.log(pdfs)
     loglik = np.sum(probs * logpdfs)
     return(loglik)
