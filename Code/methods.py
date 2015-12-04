@@ -51,7 +51,7 @@ def em_gmm(data, init_mu, init_sigma, init_mix, num_iter=100, verbose=False):
     curr_sigma = init_sigma
     curr_mix = init_mix
     logliks = np.zeros(num_iter+1)
-    times = np.zeros(num_iter+1)
+    time_iter = np.zeros(num_iter+1)
 
     start_time = process_time()
     for iternum in range(num_iter):
@@ -62,24 +62,27 @@ def em_gmm(data, init_mu, init_sigma, init_mix, num_iter=100, verbose=False):
                 print('.', end='', flush=True)
 
         # E-step
+        start = process_time()
         pdfs = calc_pdfs(data, curr_mu, curr_sigma)
         probs = _calc_probs(pdfs, curr_mix)
+        time_iter[iternum+1] += process_time() - start
 
         logliks[iternum] = calc_loglik(data, pdfs, probs)
 
         # M-step
+        start = process_time()
         for k in range(num_groups):
             curr_mu[k] = np.average(data, axis=0, weights=probs[:,k])
             curr_sigma[k] = np.cov(data, rowvar=0, aweights=probs[:,k], ddof=0)
         curr_mix = np.mean(probs, axis=0)
-
-        times[iternum+1] = process_time() - start_time
+        time_iter[iternum+1] += process_time() - start
 
     logliks[-1] = calc_loglik(
         data,
         calc_pdfs(data, curr_mu, curr_sigma),
         _calc_probs(pdfs, curr_mix)
     )
+    times = np.cumsum(time_iter)
 
     return (curr_mu, curr_sigma, curr_mix), (logliks, times)
 
