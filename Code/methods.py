@@ -1,3 +1,4 @@
+from time import process_time
 
 import numpy as np
 from scipy.stats import multivariate_normal as mnorm
@@ -50,7 +51,9 @@ def em_gmm(data, init_mu, init_sigma, init_mix, num_iter=100, verbose=False):
     curr_sigma = init_sigma
     curr_mix = init_mix
     logliks = np.zeros(num_iter+1)
+    times = np.zeros(num_iter+1)
 
+    start_time = process_time()
     for iternum in range(num_iter):
         if verbose:  # Status updates
             if np.isclose(iternum // 100, iternum / 100) and iternum != 0:
@@ -70,13 +73,15 @@ def em_gmm(data, init_mu, init_sigma, init_mix, num_iter=100, verbose=False):
             curr_sigma[k] = np.cov(data, rowvar=0, aweights=probs[:,k], ddof=0)
         curr_mix = np.mean(probs, axis=0)
 
+        times[iternum+1] = process_time() - start_time
+
     logliks[-1] = calc_loglik(
         data,
         calc_pdfs(data, curr_mu, curr_sigma),
         _calc_probs(pdfs, curr_mix)
     )
 
-    return (curr_mu, curr_sigma, curr_mix), logliks
+    return (curr_mu, curr_sigma, curr_mix), (logliks, times)
 
 
 def _calc_probs(pdfs, mix):
@@ -180,7 +185,8 @@ if __name__ == '__main__':
     init_sigma = [np.identity(2) for i in range(3)]
     init_mix = np.array([1., 1., 1.])/3
 
-    res, logliks = em_gmm(x, init_mu, init_sigma, init_mix, num_iter=400)
+    res, (logliks, times) = em_gmm(
+        x, init_mu, init_sigma, init_mix, num_iter=400)
 
     # Plotting
     data_mu = np.array(
