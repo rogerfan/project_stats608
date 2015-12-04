@@ -9,13 +9,14 @@ def em_gmm(data, init_mu, init_sigma, init_mix, num_iter=100, verbose=False):
 
     Parameters
     ----------
-    data : array
+    data : 2-d array
         Data to cluster.
-    init_mu : array
-        Array of initial means. Each row should be a mean vector for each
-        group.
-    init_sigma : list of arrays
-        Initial covariance matrices for estimation.
+    init_mu : 2-d array
+        Array of initial means. init_mu[k] should provide the mean vector
+        for the kth group.
+    init_sigma : list of 2-d arrays or 3-d array
+        Initial covariance matrices. init_sigma[k] should provide the
+        covariance matrix for the kth group.
     init_mix : array
         Initial mixing components.
     num_iter : int, optional
@@ -25,8 +26,8 @@ def em_gmm(data, init_mu, init_sigma, init_mix, num_iter=100, verbose=False):
 
     Returns
     -------
-    curr_mu : array
-    curr_sigma : list of arrays
+    curr_mu : 2-d array
+    curr_sigma : list of 2-d arrays or 3-d array
     curr_mix : array
         Final estimates of the mean, covariance, and mixture components.
 
@@ -48,6 +49,7 @@ def em_gmm(data, init_mu, init_sigma, init_mix, num_iter=100, verbose=False):
     curr_mu = init_mu
     curr_sigma = init_sigma
     curr_mix = init_mix
+    logliks = np.zeros(num_iter+1)
 
     for iternum in range(num_iter):
         if verbose:  # Status updates
@@ -57,12 +59,10 @@ def em_gmm(data, init_mu, init_sigma, init_mix, num_iter=100, verbose=False):
                 print('.', end='', flush=True)
 
         # E-step
-        pdfs = np.zeros((n, num_groups))
-        for k in range(num_groups):
-            pdfs[:,k] = mnorm.pdf(data, curr_mu[k], curr_sigma[k])
-        weighted_pdfs = curr_mix*pdfs
-        tot_pdfs = np.sum(weighted_pdfs, axis=1)
-        probs = weighted_pdfs / tot_pdfs[:,np.newaxis]
+        pdfs = calc_pdfs(data, curr_mu, curr_sigma)
+        probs = _calc_probs(pdfs, curr_mix)
+
+        logliks[iternum] = calc_loglik(data, pdfs, probs)
 
         # M-step
         for k in range(num_groups):
@@ -70,34 +70,68 @@ def em_gmm(data, init_mu, init_sigma, init_mix, num_iter=100, verbose=False):
             curr_sigma[k] = np.cov(data, rowvar=0, aweights=probs[:,k], ddof=0)
         curr_mix = np.mean(probs, axis=0)
 
-    return curr_mu, curr_sigma, curr_mix
+    logliks[-1] = calc_loglik(
+        data,
+        calc_pdfs(data, curr_mu, curr_sigma),
+        _calc_probs(pdfs, curr_mix)
+    )
+
+    return (curr_mu, curr_sigma, curr_mix), logliks
+
+
+def _calc_probs(pdfs, mix):
+    weighted_pdfs = mix*pdfs
+    tot_pdfs = np.sum(weighted_pdfs, axis=1)
+    probs = weighted_pdfs / tot_pdfs[:,np.newaxis]
+    return probs
+
+
+def calc_pdfs(data, mus, sigmas):
+    '''
+    Calculates pdf of each observation for each group.
+
+    Parameters
+    ----------
+    data : 2-d array
+    mus : 2-d array
+        Array of mean vectors.
+    sigmas : list of 2-d arrays or 3-d array
+        Covariance matrices.
+
+    Returns
+    -------
+    pdfs : 2-d array
+        pdfs[i, j] contains the pdf for the ith observation using the jth
+        group.
+
+    '''
+    num_groups = len(mus)
+    pdfs = np.zeros((len(data), num_groups))
+    for k in range(num_groups):
+        pdfs[:,k] = mnorm.pdf(data, mus[k], sigmas[k])
+    return pdfs
+
+
+def calc_loglik(data, pdfs, probs):
+    logpdfs = np.log(pdfs)
+    loglik = np.sum(probs * logpdfs)
+    return(loglik)
 
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from matplotlib import colors
 
-    n = 200
+    n = 2000
     np.random.seed(29643)
 
-    # # Simulate 2 groups
-    # mu = np.array([[0, 2], [2, 1]])
-    # sigma = [np.array([[1, .1], [.1, .3]]),
-    #          np.array([[1, -.1], [-.1, 1]])]
-    # mix = np.array([.2, .8])
-
-    # x0 = mnorm.rvs(mu[0], sigma[0], size=n)
-    # x1 = mnorm.rvs(mu[1], sigma[1], size=n)
-    # z = np.random.binomial(1, mix[1], size=n).astype('Bool')
-
-    # x = x0.copy()
-    # x[z] = x1[z]
-
     # Simulate 3 groups
-    mu = np.array([[0, 2], [2, 1], [2, 3]])
-    sigma = [np.array([[1, .1], [.1, .3]]),
-             np.array([[1, -.1], [-.1, 1]]),
-             np.array([[.5, -.5], [-.5, 1.]])]
+    num_groups = 3
+    mu = np.array([[0., 2.], [2., 1.], [2., 3.]])
+    sigma = np.array(
+        [[[1.0,  0.1], [ 0.1, 0.3]],
+         [[1.0, -0.1], [-0.1, 1.0]],
+         [[0.5, -0.5], [-0.5, 1.0]]])
     mix = np.array([.15, .7, .15])
 
     xs = [mnorm.rvs(mu[k], sigma[k], size=n) for k in range(3)]
@@ -125,4 +159,21 @@ if __name__ == '__main__':
     init_sigma = [np.identity(2) for i in range(3)]
     init_mix = np.array([1., 1., 1.])/3
 
-    res = em_gmm(x, init_mu, init_sigma, init_mix)
+    res, logliks = em_gmm(x, init_mu, init_sigma, init_mix, num_iter=400)
+
+    # Plotting
+    data_mu = np.array(
+        [np.mean(x[z_ind == k], axis=0) for k in range(num_groups)])
+    data_sigma = np.array(
+        [np.cov(x[z_ind == k], rowvar=0) for k in range(num_groups)])
+
+    data_loglik = calc_loglik(
+        x, calc_pdfs(x, data_mu, data_sigma), z)
+    true_loglik = calc_loglik(x, calc_pdfs(x, mu, sigma), z)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.plot(logliks)
+    ax.axhline(y=data_loglik, color='green')
+    ax.axhline(y=true_loglik, color='red')
+    fig.savefig('./logliks.pdf')
