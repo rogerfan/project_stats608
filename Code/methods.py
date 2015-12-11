@@ -3,7 +3,7 @@ from time import process_time
 import numpy as np
 from scipy.stats import multivariate_normal as mnorm
 
-from utilities import calc_probs, calc_pdfs, calc_loglik
+from utilities import calc_probs, calc_pdfs, calc_loglik, sample_multinomials
 
 
 def em_alg(data, init_mu, init_sigma, init_mix, beta_func=None,
@@ -30,10 +30,10 @@ def em_alg(data, init_mu, init_sigma, init_mix, beta_func=None,
 
     Returns
     -------
-    curr_mu : 2-d array
-    curr_sigma : list of 2-d arrays or 3-d array
-    curr_mix : array
+    res : (curr_mu, curr_sigma, curr_mix)
         Final estimates of the mean, covariance, and mixture components.
+    diag : (logliks, times)
+        Diagnostics by iteration.
 
     '''
     if len(init_mu) != len(init_sigma) or len(init_sigma) != len(init_mix):
@@ -97,8 +97,42 @@ def em_alg(data, init_mu, init_sigma, init_mix, beta_func=None,
     return (curr_mu, curr_sigma, curr_mix), (logliks, times)
 
 
-def sa_gmm(data, init_mu, init_sigma, init_mix, temp_func,
+def sim_anneal(data, init_mu, init_sigma, init_mix, temp_func,
            num_iter=100, seed=None, verbose=False):
+    '''
+    Estimate Gaussian mixture models with simulated annealing.
+
+    Parameters
+    ----------
+    data : 2-d array
+        Data to cluster.
+    init_mu : 2-d array
+        Array of initial means. init_mu[k] should provide the mean vector
+        for the kth group.
+    init_sigma : list of 2-d arrays or 3-d array
+        Initial covariance matrices. init_sigma[k] should provide the
+        covariance matrix for the kth group.
+    init_mix : array
+        Initial mixing components.
+    temp_func : function
+        Temperature function. Should take an iteration number and return
+        a temperature.
+    num_iter : int, optional
+        Number of EM iterations to run. (default 100)
+    seed : int, optional
+        Random seed to initialize algorithm with.
+    verbose : bool, optional
+        Set to true to print status updates.
+
+    Returns
+    -------
+    res : (best_mu, best_sigma, best_mix, best_classes)
+        Best estimates of the mean, covariance, and mixture components, as
+        well as the best estimated class memberships.
+    diag : (logliks, times)
+        Diagnostics by iteration.
+
+    '''
     if len(init_mu) != len(init_sigma) or len(init_sigma) != len(init_mix):
         raise ValueError(
             'Number of initial values needs to be consistent.')
@@ -147,8 +181,7 @@ def sa_gmm(data, init_mu, init_sigma, init_mix, temp_func,
         pdfs = calc_pdfs(data, curr_mu, curr_sigma)
         probs = calc_probs(pdfs, curr_mix, 1.)
 
-        for i, prob in enumerate(probs):
-            cand_classes[i] = np.random.multinomial(1, prob)
+        cand_classes = sample_multinomials(probs)
         for k in range(num_groups):
             cand_mu[k] = np.mean(data[cand_classes[:,k] == 1], axis=0)
             cand_sigma[k] = np.cov(data[cand_classes[:,k] == 1], rowvar=0)
@@ -173,7 +206,7 @@ def sa_gmm(data, init_mu, init_sigma, init_mix, temp_func,
 
         # Storage
         time_iter[iternum+1] += process_time() - start
-        logliks[iternum+1] = curr_loglik
+        logliks[iternum+1] = best_loglik
 
     times = np.cumsum(time_iter)
     return best, (logliks, times)
@@ -227,8 +260,8 @@ if __name__ == '__main__':
         x, init_mu, init_sigma, init_mix, num_iter=250,
         beta_func=lambda i: 1.-np.exp(-(i+1)/10))
 
-    res_sa, (logliks_sa, times_sa) = sa_gmm(
-        x, init_mu, init_sigma, init_mix, num_iter=250, seed=234254,
+    res_sa, (logliks_sa, times_sa) = sim_anneal(
+        x, init_mu, init_sigma, init_mix, num_iter=250, seed=105725,
         temp_func=lambda i: max(1e-4, 100*.992**i))
 
     # Plotting
@@ -241,10 +274,19 @@ if __name__ == '__main__':
         x, calc_pdfs(x, data_mu, data_sigma), z)
     true_loglik = calc_loglik(x, calc_pdfs(x, mu, sigma), z)
 
-    fig = plt.figure()
-    ax = fig.add_subplot(1, 1, 1)
+    fig1 = plt.figure()
+    ax = fig1.add_subplot(1, 1, 1)
     ax.plot(logliks_em)
     ax.plot(logliks_da)
     ax.plot(logliks_sa)
     ax.axhline(y=data_loglik, color='k')
-    fig.savefig('./logliks.pdf')
+    ax.set_ylim(ymin=1.1*min(np.min(logliks_em), np.min(logliks_da)))
+    fig1.savefig('./logliks_byiter.pdf')
+
+    fig2 = plt.figure()
+    ax = fig2.add_subplot(1, 1, 1)
+    ax.plot(times_em, logliks_em)
+    ax.plot(times_da, logliks_da)
+    ax.plot(times_sa, logliks_sa)
+    ax.axhline(y=data_loglik, color='k')
+    fig2.savefig('./logliks_bytime.pdf')
