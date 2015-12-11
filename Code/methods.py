@@ -3,8 +3,10 @@ from time import process_time
 import numpy as np
 from scipy.stats import multivariate_normal as mnorm
 
+from utilities import calc_probs, calc_pdfs, calc_loglik
 
-def em_gmm(data, init_mu, init_sigma, init_mix, beta_func=None,
+
+def em_alg(data, init_mu, init_sigma, init_mix, beta_func=None,
            num_iter=100, verbose=False):
     '''
     Estimate Gaussian mixture models with EM algorithm.
@@ -71,10 +73,10 @@ def em_gmm(data, init_mu, init_sigma, init_mix, beta_func=None,
         # E-step
         start = process_time()
         pdfs = calc_pdfs(data, curr_mu, curr_sigma)
-        probs = _calc_probs(pdfs, curr_mix, beta)
+        probs = calc_probs(pdfs, curr_mix, beta)
         time_iter[iternum+1] += process_time() - start
 
-        probs_raw = _calc_probs(pdfs, curr_mix, 1.)
+        probs_raw = calc_probs(pdfs, curr_mix, 1.)
         logliks[iternum] = calc_loglik(data, pdfs, probs_raw)
 
         # M-step
@@ -88,71 +90,93 @@ def em_gmm(data, init_mu, init_sigma, init_mix, beta_func=None,
     logliks[-1] = calc_loglik(
         data,
         calc_pdfs(data, curr_mu, curr_sigma),
-        _calc_probs(pdfs, curr_mix, 1.)
+        calc_probs(pdfs, curr_mix, 1.)
     )
     times = np.cumsum(time_iter)
 
     return (curr_mu, curr_sigma, curr_mix), (logliks, times)
 
 
-def _calc_probs(pdfs, mix, b):
-    weighted_pdfs = (mix*pdfs)**b
-    tot_pdfs = np.sum(weighted_pdfs, axis=1)
-    probs = weighted_pdfs / tot_pdfs[:,np.newaxis]
-    return probs
+def sa_gmm(data, init_mu, init_sigma, init_mix, temp_func,
+           num_iter=100, seed=None, verbose=False):
+    if len(init_mu) != len(init_sigma) or len(init_sigma) != len(init_mix):
+        raise ValueError(
+            'Number of initial values needs to be consistent.')
+    if not np.isclose(sum(init_mix), 1):
+        raise ValueError(
+            'Initial mixing components should add to 1.')
 
+    num_groups = len(init_mu)
+    n = len(data)
+    try:
+        p = len(init_mu[0])
+    except TypeError:
+        p = 1
+    if seed is not None:
+        np.random.seed(seed)
 
-def calc_pdfs(data, mus, sigmas):
-    '''
-    Calculates pdf of each observation for each group.
+    # Initialize arrays
+    curr_mu = init_mu.copy()
+    cand_mu = init_mu.copy()
+    curr_sigma = init_sigma.copy()
+    cand_sigma = init_sigma.copy()
+    curr_mix = init_mix.copy()
+    cand_classes = np.zeros((n, num_groups), dtype=int)
 
-    Parameters
-    ----------
-    data : 2-d array
-    mus : 2-d array
-        Array of mean vectors.
-    sigmas : list of 2-d arrays or 3-d array
-        Covariance matrices.
+    # Randomly assign initial classes
+    curr_classes = np.random.multinomial(1, curr_mix, size=n)
+    curr_loglik = calc_loglik(
+        data, calc_pdfs(data, curr_mu, curr_sigma), curr_classes)
+    best_loglik = curr_loglik
 
-    Returns
-    -------
-    pdfs : 2-d array
-        pdfs[i, j] contains the pdf for the ith observation using the jth
-        group.
+    # Initialize storage arrays
+    logliks = np.zeros(num_iter+1)
+    logliks[0] = curr_loglik
+    time_iter = np.zeros(num_iter+1)
 
-    '''
-    num_groups = len(mus)
-    pdfs = np.zeros((len(data), num_groups))
-    for k in range(num_groups):
-        pdfs[:,k] = mnorm.pdf(data, mus[k], sigmas[k])
-    return pdfs
+    for iternum in range(num_iter):
+        if verbose:  # Status updates
+            if np.isclose(iternum // 100, iternum / 100) and iternum != 0:
+                print()
+            if np.isclose(iternum // 10, iternum / 10) and iternum != 0:
+                print('.', end='', flush=True)
 
+        start = process_time()
 
-def calc_loglik(data, pdfs, probs):
-    '''
-    Calculates the log likelihood of the data. If probs is an indicator, then
-    the log likelihood of the data is
-    ``log p(x) = sum_i sum_k probs_ik log p_k(x_i)''
-    This motivates the weighted log-likelihood to use when probs contains
-    probabilities which has the same formula.
+        # Randomly select new candidate classes and calculate the loglik
+        pdfs = calc_pdfs(data, curr_mu, curr_sigma)
+        probs = calc_probs(pdfs, curr_mix, 1.)
 
-    Parameters
-    ----------
-    data : 2-d array
-    pdfs : 2-d array
-        Array of pdfs of each observation for each group.
-    probs : 2-d array
-        Array of the probability that each observation is in each group.
+        for i, prob in enumerate(probs):
+            cand_classes[i] = np.random.multinomial(1, prob)
+        for k in range(num_groups):
+            cand_mu[k] = np.mean(data[cand_classes[:,k] == 1], axis=0)
+            cand_sigma[k] = np.cov(data[cand_classes[:,k] == 1], rowvar=0)
+        cand_loglik = calc_loglik(
+            data, calc_pdfs(data, cand_mu, cand_sigma), cand_classes)
 
-    Returns
-    -------
-    loglik : float
-        Log likelihood of the data.
+        # Switching
+        accept = np.random.uniform()
+        log_accept_prob = (cand_loglik - curr_loglik)/temp_func(iternum)
+        if cand_loglik >= curr_loglik or np.log(accept) < log_accept_prob:
+            curr_classes = cand_classes
+            curr_loglik = cand_loglik
+            curr_mu = cand_mu
+            curr_sigma = cand_sigma
 
-    '''
-    logpdfs = np.log(pdfs)
-    loglik = np.sum(probs * logpdfs)
-    return(loglik)
+            curr_mix = np.mean(curr_classes, axis=0)
+
+        # Keep best loglik so far
+        if curr_loglik > best_loglik:
+            best = (curr_mu, curr_sigma, curr_mix, curr_classes)
+            best_loglik = curr_loglik
+
+        # Storage
+        time_iter[iternum+1] += process_time() - start
+        logliks[iternum+1] = curr_loglik
+
+    times = np.cumsum(time_iter)
+    return best, (logliks, times)
 
 
 if __name__ == '__main__':
@@ -196,16 +220,16 @@ if __name__ == '__main__':
     init_sigma = [np.identity(2) for i in range(3)]
     init_mix = np.array([1., 1., 1.])/3
 
-    res_em, (logliks_em, times_em) = em_gmm(
-        x, init_mu, init_sigma, init_mix, num_iter=500)
+    res_em, (logliks_em, times_em) = em_alg(
+        x, init_mu, init_sigma, init_mix, num_iter=250)
 
-    # res_da, (logliks_da, times_da) = em_gmm(
-    #     x, init_mu, init_sigma, init_mix, num_iter=500,
-    #     beta_func=lambda i: 0.1*1.1**i)
-
-    res_da, (logliks_da, times_da) = em_gmm(
-        x, init_mu, init_sigma, init_mix, num_iter=500,
+    res_da, (logliks_da, times_da) = em_alg(
+        x, init_mu, init_sigma, init_mix, num_iter=250,
         beta_func=lambda i: 1.-np.exp(-(i+1)/10))
+
+    res_sa, (logliks_sa, times_sa) = sa_gmm(
+        x, init_mu, init_sigma, init_mix, num_iter=250, seed=234254,
+        temp_func=lambda i: max(1e-4, 100*.992**i))
 
     # Plotting
     data_mu = np.array(
@@ -221,5 +245,6 @@ if __name__ == '__main__':
     ax = fig.add_subplot(1, 1, 1)
     ax.plot(logliks_em)
     ax.plot(logliks_da)
-    ax.axhline(y=data_loglik, color='red')
+    ax.plot(logliks_sa)
+    ax.axhline(y=data_loglik, color='k')
     fig.savefig('./logliks.pdf')
