@@ -139,9 +139,9 @@ if __name__ == '__main__':
     res, logliks, beta = mm_sa(
         x, init_mu, init_sigma, num_iter=50000)
     end = process_time()
-    print("\n\n")
+    print()
     print("Total time elapsed: ", end - start)
-    print("\n\n")
+    print()
     cmap, norm = colors.from_levels_and_colors(
                 levels=[0, 1, 2], colors=['magenta', 'cyan', 'green'], extend='max')
 
@@ -177,3 +177,4 @@ if __name__ == '__main__':
     fig.savefig('./logliks_sa2.pdf')
     print("\nBest Likelihood is: ", np.max(logliks))
     print("Difference between true and estimate is: ", np.abs(logliks[-1]-true_loglik))
+    print(res[0])
