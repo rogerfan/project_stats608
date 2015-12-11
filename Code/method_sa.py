@@ -1,98 +1,77 @@
-import time
+from time import process_time
 import numpy as np
 from scipy.stats import multivariate_normal as mnorm
 
 
 
-def mm_sa(data, init_mu, init_sigma, maxIter=100):
-    
+def mm_sa(data, init_mu, init_sigma, num_iter=100):
     # initialize number of groups, observations and p
     num_groups = len(init_mu)
     n = len(data)
     try:
-        p = len(init_mu[0])
-    except TypeError:
+        p = data.shape[1]
+    except IndexError:
         p = 1
 
-    # initialize parameters for each mixture component
-    curr_mu = init_mu
-    curr_sigma = init_sigma
-    curr_mix = init_mix
+    # Randomly assign classes to begin
+    curr_class = np.random.randint(0, num_groups, n)
+    groups = np.arange(num_groups)  # list of possible groups
+    ids = np.arange(n)  # array to select pivots from
 
-    # randomly assign classes to begin
-    cls = np.random.randint(0, num_groups, n)
-    # create an array to later select new classes from
-    gps = np.arange(num_groups)
-    # set max number of iterations
-    nMax = maxIter
-    nRep = 0
-    
-    # create cooling/weighting vector
-    beta = np.array([.1] * n)
-    print(len(beta))
-    # create empty vector for log-likeihoods
-    logLik_vect = np.empty(nMax)
-    # calculate log likelihood for each observation given current 
-    # class assignments
-    curr_lik = calc_loglik_full(data, curr_mu, curr_sigma, cls)
-    # calculate current log-likelihood for entire data
-    run_loglik = np.sum(curr_lik)
-    # array to select pivots from
-    ids = np.arange(n)
+    # Initialize curr parameters based on assigned classes
+    # curr_mu = np.array(
+    #     [np.mean(data[curr_class == k], axis=0) for k in range(num_groups)])
+    # curr_sigma = np.array(
+    #     [np.cov(data[curr_class == k], rowvar=0) for k in range(num_groups)])
 
-    # initial mix
-    mix = np.ones(3) / 3.0
+    curr_mu = init_mu.copy()
+    curr_sigma = init_sigma.copy()
+    curr_mix = np.array([np.sum(curr_class == k)/n for k in range(num_groups)])
 
-    while nRep < nMax:
+    beta = 0.1*np.ones(n)  # cooling/weighting vector
 
-        # calculate total weight for weighted selection of pivot
-        tot_weight = np.sum(beta)
-        pivot = np.random.choice(ids, 1, p=beta/tot_weight)
-        old_class = cls[pivot]
-        # select one class to switch to
-        other_gps = np.setdiff1d(gps, old_class)
-        probs = mix[other_gps] / np.sum(mix[other_gps])
-        cls_change = int(np.random.choice(other_gps, p=probs, size=1))
-        # calculate the new likelihood under new class assignment 
-        new_lik = calc_loglik_point(data[pivot,:], 
-                                    curr_mu[cls_change],
-                                    curr_sigma[cls_change])
+    loglik_vect = np.zeros(num_iter)  # for storing logliks at each iter
+    time_iter = np.zeros(num_iter)
+
+    curr_logliks = calc_loglik_full(data, curr_mu, curr_sigma, curr_class)
+    tot_loglik = np.sum(curr_logliks)
+
+    for iternum in range(num_iter):
+        # Select pivot by randomly using beta as weights
+        pivot = np.random.choice(ids, 1, p=beta/np.sum(beta))
+        old_class = curr_class[pivot]
+
+        # Select a class to switch to
+        other_groups = np.setdiff1d(groups, old_class)
+        probs = curr_mix[other_groups] / np.sum(curr_mix[other_groups])
+        cls_change = int(np.random.choice(other_groups, p=probs, size=1))
+
+        # calculate the new likelihood under new class assignment
+        new_loglik = mnorm.logpdf(
+            data[pivot,:], curr_mu[cls_change], curr_sigma[cls_change])
 
         # if our new likelihood is better; accept, update LL, class assignment
         # and estimates of mu_k, sigma_k for all k
-        if (new_lik >= curr_lik[pivot]):
-            run_loglik = run_loglik + new_lik - curr_lik[pivot]
-            curr_lik[pivot] = new_lik
-            cls[pivot] = cls_change
+        pchange = np.random.uniform()
+        if new_loglik >= curr_logliks[pivot] or pchange < beta[pivot]:
+            tot_loglik = tot_loglik + new_loglik - curr_logliks[pivot]
+            curr_logliks[pivot] = new_loglik
+            curr_class[pivot] = cls_change
             for k in range(num_groups):
-                gp_memb = np.where(cls == k, 1, 0)
-                curr_mu[k] = np.average(data, weights=gp_memb, axis=0)
-                curr_sigma[k] = np.cov(data, rowvar=0, aweights=gp_memb, ddof=0)
-            logLik_vect[nRep] = run_loglik
-            mix[old_class] = mix[old_class] - 1.0 / n
-            mix[cls_change] = mix[cls_change] + 1.0 / n
-        # otherwise, we'll switch if runif < beta[pivot];
-        # regardless of weather we switch, we "cool" that observation's beta
-        else:
-            pChange = np.random.uniform(0,1,size=1)
-            if pChange < beta[pivot]:
-                run_loglik = run_loglik + new_lik - curr_lik[pivot]
-                curr_lik[pivot] = new_lik
-                cls[pivot] = cls_change
-                for k in range(num_groups):
-                    gp_memb = np.where(cls == k, 1, 0)
-                    curr_mu[k] = np.average(data, weights=gp_memb, axis=0)
-                    curr_sigma[k] = np.cov(data, rowvar=0, aweights=gp_memb, ddof=0)
-                logLik_vect[nRep] = run_loglik
-                mix[old_class] = mix[old_class] - 1.0 / n
-                mix[cls_change] = mix[cls_change] + 1.0 / n
-            else:
-                logLik_vect[nRep] = run_loglik
-            beta[pivot] = beta[pivot] / 2
-        nRep += 1
-    print(mix)
-    print([np.mean(np.where(cls == k, 1, 0)) for k in range(3)])
-    return (curr_mu, curr_sigma), logLik_vect, beta
+                curr_mu[k] = np.mean(data[curr_class == k], axis=0)
+                curr_sigma[k] = np.cov(data[curr_class == k], rowvar=0)
+            loglik_vect[iternum] = tot_loglik
+            curr_mix[old_class] = curr_mix[old_class] - 1.0 / n
+            curr_mix[cls_change] = curr_mix[cls_change] + 1.0 / n
+
+        if new_loglik < curr_logliks[pivot]:
+            beta[pivot] *= 0.5  # Cool that obs beta regardless of switching
+
+        loglik_vect[iternum] = tot_loglik
+
+    print(curr_mix)
+    print([np.mean(np.where(curr_class == k, 1, 0)) for k in range(3)])
+    return (curr_mu, curr_sigma), loglik_vect, beta
 
 
 
@@ -113,32 +92,11 @@ def calc_loglik_full(data, mus, sigmas, lab):
     log-likelihood
 
     '''
-    num_groups = len(mus)
-    n_samp = len(data)
-    pdfs = np.zeros(n_samp)
-    for j in range(n_samp):
-        curr_cls = int(lab[j])
-        pdfs[j] = mnorm.pdf(data[j,:], mus[curr_cls], sigmas[curr_cls])
-    return np.log(pdfs)
+    pdfs = np.zeros(len(data))
+    for g in np.unique(lab):
+        pdfs[lab == g] = mnorm.logpdf(data[lab == g], mus[g], sigmas[g])
+    return pdfs
 
-def calc_loglik_point(obs, mu, sigma):
-    '''
-    Calculates pdf of single observation for new class
-
-    Parameters
-    ----------
-    obs : observation whose likelihood is calculated given mu, sigma
-    mu : mean vector for mvn
-    sigma : cov. matrix for mvn
-
-    Returns
-    -------
-    log-likelihood of observation for new class
-
-    '''
-
-    lik = mnorm.pdf(obs, mu, sigma)
-    return np.log(lik)
 
 if __name__ == '__main__':
     from matplotlib import colors
@@ -164,7 +122,7 @@ if __name__ == '__main__':
     x[z[:,1]] = xs[1][z[:,1]]
     x[z[:,2]] = xs[2][z[:,2]]
 
-    z_ind = np.zeros(n)
+    z_ind = np.zeros(n, dtype=np.int)
     z_ind[z[:,1]] = 1
     z_ind[z[:,2]] = 2
 
@@ -173,14 +131,14 @@ if __name__ == '__main__':
     init_sigma = [np.identity(2) for i in range(3)]
     init_mix = np.array([1., 1., 1.])/3
     # # # # # # # # # # # # # # # # # # # # # # # #
-    # # # # # # # # # # # # # # # # # # # # # # # # 
+    # # # # # # # # # # # # # # # # # # # # # # # #
     # run the algorithm
     # # # # # # # # # # # # # # # # # # # # # # # #
-    # # # # # # # # # # # # # # # # # # # # # # # # 
-    start = time.time()
+    # # # # # # # # # # # # # # # # # # # # # # # #
+    start = process_time()
     res, logliks, beta = mm_sa(
-        x, init_mu, init_sigma, maxIter=50000)
-    end = time.time()
+        x, init_mu, init_sigma, num_iter=50000)
+    end = process_time()
     print("\n\n")
     print("Total time elapsed: ", end - start)
     print("\n\n")
@@ -205,19 +163,17 @@ if __name__ == '__main__':
 
     data_mu = np.array(
         [np.mean(x[z_ind == k], axis=0) for k in range(num_groups)])
-    
     data_sigma = np.array(
         [np.cov(x[z_ind == k], rowvar=0) for k in range(num_groups)])
 
-    curr_mu = res[0]; curr_sigma = res[1]
-    data_loglik = np.sum(calc_loglik_full(x, curr_mu, curr_sigma, z_ind))
+    data_loglik = np.sum(calc_loglik_full(x, data_mu, data_sigma, z_ind))
     true_loglik = np.sum(calc_loglik_full(x, mu, sigma, z_ind))
 
-    # fig = plt.figure()
-    # ax = fig.add_subplot(1, 1, 1)
-    # ax.plot(logliks)
-    #ax.axhline(y=data_loglik, color='green')
-    # ax.axhline(y=true_loglik, color='red')
-    # fig.savefig('./logliks_sa2.pdf')
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.plot(logliks)
+    ax.axhline(y=data_loglik, color='green')
+    ax.axhline(y=true_loglik, color='red')
+    fig.savefig('./logliks_sa2.pdf')
     print("\nBest Likelihood is: ", np.max(logliks))
     print("Difference between true and estimate is: ", np.abs(logliks[-1]-true_loglik))
