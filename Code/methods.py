@@ -178,7 +178,7 @@ if __name__ == '__main__':
     x[z[:,1]] = xs[1][z[:,1]]
     x[z[:,2]] = xs[2][z[:,2]]
 
-    z_ind = np.zeros(n)
+    z_ind = np.zeros(n, dtype=int)
     z_ind[z[:,1]] = 1
     z_ind[z[:,2]] = 2
 
