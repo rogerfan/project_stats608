@@ -4,7 +4,8 @@ import numpy as np
 from scipy.stats import multivariate_normal as mnorm
 
 
-def em_gmm(data, init_mu, init_sigma, init_mix, num_iter=100, verbose=False):
+def em_gmm(data, init_mu, init_sigma, init_mix, beta_func=None,
+           num_iter=100, verbose=False):
     '''
     Estimate Gaussian mixture models with EM algorithm.
 
@@ -40,6 +41,9 @@ def em_gmm(data, init_mu, init_sigma, init_mix, num_iter=100, verbose=False):
         raise ValueError(
             'Initial mixing components should add to 1.')
 
+    if beta_func is None:
+        beta_func = lambda i: 1.
+
     num_groups = len(init_mu)
     n = len(data)
     try:
@@ -47,9 +51,9 @@ def em_gmm(data, init_mu, init_sigma, init_mix, num_iter=100, verbose=False):
     except TypeError:
         p = 1
 
-    curr_mu = init_mu
-    curr_sigma = init_sigma
-    curr_mix = init_mix
+    curr_mu = init_mu.copy()
+    curr_sigma = init_sigma.copy()
+    curr_mix = init_mix.copy()
     logliks = np.zeros(num_iter+1)
     time_iter = np.zeros(num_iter+1)
 
@@ -60,14 +64,18 @@ def em_gmm(data, init_mu, init_sigma, init_mix, num_iter=100, verbose=False):
                 print()
             if np.isclose(iternum // 10, iternum / 10) and iternum != 0:
                 print('.', end='', flush=True)
+        beta = beta_func(iternum)
+        if beta > 1.:
+            beta = 1.
 
         # E-step
         start = process_time()
         pdfs = calc_pdfs(data, curr_mu, curr_sigma)
-        probs = _calc_probs(pdfs, curr_mix)
+        probs = _calc_probs(pdfs, curr_mix, beta)
         time_iter[iternum+1] += process_time() - start
 
-        logliks[iternum] = calc_loglik(data, pdfs, probs)
+        probs_raw = _calc_probs(pdfs, curr_mix, 1.)
+        logliks[iternum] = calc_loglik(data, pdfs, probs_raw)
 
         # M-step
         start = process_time()
@@ -80,15 +88,15 @@ def em_gmm(data, init_mu, init_sigma, init_mix, num_iter=100, verbose=False):
     logliks[-1] = calc_loglik(
         data,
         calc_pdfs(data, curr_mu, curr_sigma),
-        _calc_probs(pdfs, curr_mix)
+        _calc_probs(pdfs, curr_mix, 1.)
     )
     times = np.cumsum(time_iter)
 
     return (curr_mu, curr_sigma, curr_mix), (logliks, times)
 
 
-def _calc_probs(pdfs, mix):
-    weighted_pdfs = mix*pdfs
+def _calc_probs(pdfs, mix, b):
+    weighted_pdfs = (mix*pdfs)**b
     tot_pdfs = np.sum(weighted_pdfs, axis=1)
     probs = weighted_pdfs / tot_pdfs[:,np.newaxis]
     return probs
@@ -188,8 +196,16 @@ if __name__ == '__main__':
     init_sigma = [np.identity(2) for i in range(3)]
     init_mix = np.array([1., 1., 1.])/3
 
-    res, (logliks, times) = em_gmm(
-        x, init_mu, init_sigma, init_mix, num_iter=400)
+    res_em, (logliks_em, times_em) = em_gmm(
+        x, init_mu, init_sigma, init_mix, num_iter=500)
+
+    # res_da, (logliks_da, times_da) = em_gmm(
+    #     x, init_mu, init_sigma, init_mix, num_iter=500,
+    #     beta_func=lambda i: 0.1*1.1**i)
+
+    res_da, (logliks_da, times_da) = em_gmm(
+        x, init_mu, init_sigma, init_mix, num_iter=500,
+        beta_func=lambda i: 1.-np.exp(-(i+1)/10))
 
     # Plotting
     data_mu = np.array(
@@ -203,7 +219,7 @@ if __name__ == '__main__':
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    ax.plot(logliks)
-    ax.axhline(y=data_loglik, color='green')
-    ax.axhline(y=true_loglik, color='red')
+    ax.plot(logliks_em)
+    ax.plot(logliks_da)
+    ax.axhline(y=data_loglik, color='red')
     fig.savefig('./logliks.pdf')
