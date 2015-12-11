@@ -60,3 +60,15 @@ def calc_loglik(data, pdfs, probs):
     logpdfs = np.log(pdfs)
     loglik = np.sum(probs * logpdfs)
     return(loglik)
+
+
+def sample_multinomials(probs):
+    temp = np.zeros((probs.shape[0], probs.shape[1]+1))
+    temp[:,1:] = np.cumsum(probs, axis=1)
+    u = np.random.uniform(size=len(probs))
+
+    res = np.zeros(probs.shape, dtype=int)
+    for i in range(probs.shape[1]):
+        res[:,i] = np.logical_and(temp[:,i] <= u, u < temp[:,i+1])
+    return res
+
