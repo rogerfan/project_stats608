@@ -258,7 +258,7 @@ if __name__ == '__main__':
 
     res_da, (logliks_da, times_da) = em_alg(
         x, init_mu, init_sigma, init_mix, num_iter=250,
-        beta_func=lambda i: 1.-np.exp(-(i+1)/10))
+        beta_func=lambda i: 1.-np.exp(-(i+1)/5))
 
     res_sa, (logliks_sa, times_sa) = sim_anneal(
         x, init_mu, init_sigma, init_mix, num_iter=250, seed=105725,
@@ -280,7 +280,7 @@ if __name__ == '__main__':
     ax.plot(logliks_da)
     ax.plot(logliks_sa)
     ax.axhline(y=data_loglik, color='k')
-    ax.set_ylim(ymin=1.1*min(np.min(logliks_em), np.min(logliks_da)))
+    ax.set_ylim(ymin=1.05*np.min((logliks_em, logliks_da)))
     fig1.savefig('./logliks_byiter.pdf')
 
     fig2 = plt.figure()
@@ -289,4 +289,6 @@ if __name__ == '__main__':
     ax.plot(times_da, logliks_da)
     ax.plot(times_sa, logliks_sa)
     ax.axhline(y=data_loglik, color='k')
+    ax.set_ylim(ymin=1.05*np.min((logliks_em, logliks_da)))
+    ax.set_xlim(xmax=min(np.max(times_em), np.max(times_da)))
     fig2.savefig('./logliks_bytime.pdf')
