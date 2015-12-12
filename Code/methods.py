@@ -99,7 +99,7 @@ def em_alg(data, init_mu, init_sigma, init_mix, beta_func=None,
 
 
 def sim_anneal(data, init_mu, init_sigma, init_mix, temp_func,
-           num_iter=100, seed=None, verbose=False):
+               num_iter=100, seed=None, verbose=False):
     '''
     Estimate Gaussian mixture models with simulated annealing.
 
@@ -244,10 +244,10 @@ if __name__ == '__main__':
     z_ind[z[:,1]] = 1
     z_ind[z[:,2]] = 2
 
-    np.savetxt('./intermediate_data/sim_data.csv',
+    np.savetxt(
+        './intermediate_data/sim_data.csv',
         np.column_stack((x, z_ind)),
         header='x1, x2, z', delimiter=',', comments='')
-
 
     # Plot data
     cmap, norm = colors.from_levels_and_colors(
@@ -271,23 +271,28 @@ if __name__ == '__main__':
         beta_func=lambda i: 1.-np.exp(-(i+1)/5))
 
     res_sa, (logliks_sa, times_sa) = sim_anneal(
-        x, init_mu, init_sigma, init_mix, num_iter=250, seed=105725,
+        x, init_mu, init_sigma, init_mix, num_iter=250, seed=29624,
         temp_func=lambda i: max(1e-4, 100*.992**i))
-
+    # 105725 193563
 
     colnames = \
         'logliks_em, times_em, logliks_da, times_da, logliks_sa, times_sa'
-    np.savetxt('./intermediate_data/singlerun_results.csv',
+    np.savetxt(
+        './intermediate_data/singlerun_results.csv',
         np.column_stack((logliks_em, times_em,
                          logliks_da, times_da,
                          logliks_sa['best'], times_sa)),
         header=colnames, delimiter=',', comments='')
 
-    n_runs = 20
-    for t in (980, 992, 999):
+    np.savetxt('./intermediate_data/sa_singlerun.csv',
+        np.column_stack((logliks_sa['curr'], logliks_sa['best'])),
+        header='logliks_curr, logliks_best', delimiter=',', comments='')
+
+    n_runs = 100
+    np.random.seed(1913463)
+    for t in (950, 975, 992, 999):
         print(t)
         run_storage = np.zeros((251*n_runs, 4))
-        np.random.seed(4623462)
         for i in range(n_runs):
             _, (loglik, time) = sim_anneal(
                 x, init_mu, init_sigma, init_mix, num_iter=250,
@@ -297,7 +302,8 @@ if __name__ == '__main__':
             run_storage[i*251:(i+1)*251, 2] = loglik['curr']
             run_storage[i*251:(i+1)*251, 3] = loglik['best']
 
-        np.savetxt('./intermediate_data/sa_t{}.csv'.format(t), run_storage,
+        np.savetxt(
+            './intermediate_data/sa_t{}.csv'.format(t), run_storage,
             header='run, iter, loglik_curr, loglik_best',
             delimiter=',', comments='')
 
