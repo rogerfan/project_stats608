@@ -243,6 +243,11 @@ if __name__ == '__main__':
     z_ind[z[:,1]] = 1
     z_ind[z[:,2]] = 2
 
+    np.savetxt('./intermediate_data/sim_data.csv',
+        np.column_stack((x, z_ind)),
+        header='x1, x2, z', delimiter=',', comments='')
+
+
     # Plot data
     cmap, norm = colors.from_levels_and_colors(
         levels=[0, 1, 2], colors=['magenta', 'cyan', 'green'], extend='max')
