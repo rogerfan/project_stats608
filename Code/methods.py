@@ -164,8 +164,10 @@ def sim_anneal(data, init_mu, init_sigma, init_mix, temp_func,
     best_loglik = curr_loglik
 
     # Initialize storage arrays
-    logliks = np.zeros(num_iter+1)
-    logliks[0] = curr_loglik
+    logliks_curr = np.zeros(num_iter+1)
+    logliks_best = np.zeros(num_iter+1)
+    logliks_curr[0] = curr_loglik
+    logliks_best[0] = curr_loglik
     time_iter = np.zeros(num_iter+1)
 
     for iternum in range(num_iter):
@@ -206,7 +208,9 @@ def sim_anneal(data, init_mu, init_sigma, init_mix, temp_func,
 
         # Storage
         time_iter[iternum+1] += process_time() - start
-        logliks[iternum+1] = best_loglik
+        logliks_curr[iternum+1] = curr_loglik
+        logliks_best[iternum+1] = best_loglik
+        logliks = {'curr': logliks_curr, 'best': logliks_best}
 
     times = np.cumsum(time_iter)
     return best, (logliks, times)
@@ -264,6 +268,33 @@ if __name__ == '__main__':
         x, init_mu, init_sigma, init_mix, num_iter=250, seed=105725,
         temp_func=lambda i: max(1e-4, 100*.992**i))
 
+
+    colnames = \
+        'logliks_em, times_em, logliks_da, times_da, logliks_sa, times_sa'
+    np.savetxt('./intermediate_data/singlerun_results.csv',
+        np.column_stack((logliks_em, times_em,
+                         logliks_da, times_da,
+                         logliks_sa['best'], times_sa)),
+        header=colnames, delimiter=',', comments='')
+
+    n_runs = 20
+    for t in (980, 992, 999):
+        print(t)
+        run_storage = np.zeros((251*n_runs, 4))
+        np.random.seed(4623462)
+        for i in range(n_runs):
+            _, (loglik, time) = sim_anneal(
+                x, init_mu, init_sigma, init_mix, num_iter=250,
+                temp_func=lambda i: max(1e-4, 100*(t/1000)**i))
+            run_storage[i*251:(i+1)*251, 0] = i
+            run_storage[i*251:(i+1)*251, 1] = np.arange(251)
+            run_storage[i*251:(i+1)*251, 2] = loglik['curr']
+            run_storage[i*251:(i+1)*251, 3] = loglik['best']
+
+        np.savetxt('./intermediate_data/sa_t{}.csv'.format(t), run_storage,
+            header='run, iter, loglik_curr, loglik_best',
+            delimiter=',', comments='')
+
     # Plotting
     data_mu = np.array(
         [np.mean(x[z_ind == k], axis=0) for k in range(num_groups)])
@@ -272,23 +303,33 @@ if __name__ == '__main__':
 
     data_loglik = calc_loglik(
         x, calc_pdfs(x, data_mu, data_sigma), z)
-    true_loglik = calc_loglik(x, calc_pdfs(x, mu, sigma), z)
+    # true_loglik = calc_loglik(x, calc_pdfs(x, mu, sigma), z)
 
-    fig1 = plt.figure()
-    ax = fig1.add_subplot(1, 1, 1)
-    ax.plot(logliks_em)
-    ax.plot(logliks_da)
-    ax.plot(logliks_sa)
-    ax.axhline(y=data_loglik, color='k')
-    ax.set_ylim(ymin=1.05*np.min((logliks_em, logliks_da)))
-    fig1.savefig('./logliks_byiter.pdf')
+    # fig1 = plt.figure()
+    # ax = fig1.add_subplot(1, 1, 1)
+    # ax.plot(logliks_em)
+    # ax.plot(logliks_da)
+    # ax.plot(logliks_sa['best'])
+    # ax.axhline(y=data_loglik, color='k')
+    # ax.set_ylim(ymin=1.05*np.min((logliks_em, logliks_da)))
+    # fig1.savefig('./logliks_byiter.pdf')
 
-    fig2 = plt.figure()
-    ax = fig2.add_subplot(1, 1, 1)
-    ax.plot(times_em, logliks_em)
-    ax.plot(times_da, logliks_da)
-    ax.plot(times_sa, logliks_sa)
-    ax.axhline(y=data_loglik, color='k')
-    ax.set_ylim(ymin=1.05*np.min((logliks_em, logliks_da)))
-    ax.set_xlim(xmax=min(np.max(times_em), np.max(times_da)))
-    fig2.savefig('./logliks_bytime.pdf')
+    # fig2 = plt.figure()
+    # ax = fig2.add_subplot(1, 1, 1)
+    # ax.plot(times_em, logliks_em)
+    # ax.plot(times_da, logliks_da)
+    # ax.plot(times_sa, logliks_sa['best'])
+    # ax.axhline(y=data_loglik, color='k')
+    # ax.set_ylim(ymin=1.05*np.min((logliks_em, logliks_da)))
+    # ax.set_xlim(xmax=min(np.max(times_em), np.max(times_da)))
+    # fig2.savefig('./logliks_bytime.pdf')
+
+    # fig3 = plt.figure()
+    # ax = fig3.add_subplot(1, 1, 1)
+    # for i in range(10):
+    #     ax.plot(run_storage_best[:,i])
+    # ax.axhline(y=data_loglik, color='k')
+    # fig3.savefig('./test.pdf')
+
+    print('True loglik: {}'.format(data_loglik))
+    # -5196.976212643527
