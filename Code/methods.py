@@ -77,7 +77,8 @@ def em_alg(data, init_mu, init_sigma, init_mix, beta_func=None,
         time_iter[iternum+1] += process_time() - start
 
         probs_raw = calc_probs(pdfs, curr_mix, 1.)
-        logliks[iternum] = calc_loglik(data, pdfs, probs_raw)
+        logliks[iternum] = calc_loglik(data, pdfs, probs)
+        # logliks[iternum] = calc_loglik(data, pdfs, probs_raw)
 
         # M-step
         start = process_time()
