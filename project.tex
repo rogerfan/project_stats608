@@ -66,6 +66,7 @@
 \newcommand*{\yestag}{\addtocounter{equation}{1}\tag{\theequation}}
 \newcommand*{\notaligned}[1]{\noalign{$\displaystyle #1$}}
 \newcommand*{\ttilde}{{\raise.17ex\hbox{$\scriptstyle\sim$}}}
+\newcommand*{\mt}[1]{\text{\normalfont #1}}
 
 \makeatletter
 \newsavebox{\mybox}\newsavebox{\mysim}
@@ -99,6 +100,10 @@
 \newtheorem{definition}{Definition}[section]
 \newtheorem{example}{Example}[section]
 \newtheorem*{properties}{Properties}
+
+\newtheoremstyle{algodesc}{}{}{}{}{\bfseries}{.}{ }{}%
+\theoremstyle{algodesc}
+\newtheorem{algodesc}{Algorithm}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
@@ -121,11 +126,129 @@
 
 \section{Previous Algorithms}
 
+
 \subsection{Expectation-Maximization}
+
+In their paper first proposing the general EM Algorithm \cite{dempsterlairdrubin77}, Dempster et. al. also applied it to mixture model estimation, and it has become the standard method of estimating parametric finite mixture models.
+
+Assume that data vectors $X_1, \dots, X_n$ are i.i.d. draws from the $J$-component mixture distribution
+\begin{equation*}
+P(X) = \sum_{j=1}^J \pi_j P_j(X \cond \theta_j)
+\end{equation*}
+Where $\pi_j$ are the mixing components, $P_j$ are the individual probability distributions, each indexed by a parameter vector $\theta_j$. Note that we can reparameterize this model by introducing a latent variable $Z$ that indicates group membership. Then our data generating model becomes:\footnote{Note that $\mt{Mult}(\cdot)$ here refers to the Multinomial distribution with $n=1$ trials, otherwise known as the Categorical distribution.}
+\begin{align*}
+Z &\dist \mt{Mult}(\pi_1, \dots, \pi_J) \\
+X \cond Z &\dist P_Z
+\end{align*}
+For simplicity, in this paper we will assume that the base distributions are multivariate Gaussian, so the parameters are $\theta_j = (\mu_j, \Sigma_j)$. Gaussian mixture models are by far the most commonly used in practice, but the algorithms and methods in this paper should all generalize to any base distributions.
+
+To estimate this model, we can use the EM algorithm as follows:
+\begin{enumerate}
+\item Initialize parameters for each distribution $\mu_j^{(0)}$, $\Sigma_j^{(0)}$, and mixing components $\pi_j^{(0)}$.
+\item Iterate the following steps until convergence or a computing budget is met:
+  \begin{enumerate}
+  \item E-step: Estimate the membership probabilities $p_{ij}^{(k+1)}$ for each observation $i$ using the current parameter estimates $\mu_j^{(k)}$, $\Sigma_j^{(k)}$ and mixing components $\pi_j^{(k)}$.
+    \begin{equation} \label{eq:em_estep}
+    p_{ij}^{(k+1)} = P(Z_i = j \cond X_i, \mu^{(k)}, \Sigma^{(k)}, \pi^{(k)})
+      = \frac{\pi_j^{(k)} P_j(X_i \cond \mu_j^{(k)}, \Sigma_j^{(k)})}{\sum_{j'=1}^J \pi_{j'}^{(k)} P_{j'}(X_i \cond \mu_{j'}^{(k)}, \Sigma_{j'}^{(k)})}
+    \end{equation}
+  \item M-step: Estimate the parameters and mixing components using maximum likelihood estimation conditional on the current membership probabilities.
+    \begin{equation} \label{eq:em_mstep}
+    \begin{gathered}
+    \pi_j^{(k+1)} = \frac{1}{n} \sum_{i=1}^n p_{ij}^{(k+1)} \qquad
+    \mu_j^{(k+1)} = \frac{\sum_{i=1}^n p_{ij}^{(k+1)} X_i}{\sum_{i=1}^n p_{ij}^{(k+1)}} \\
+    \Sigma_j^{(k+1)} = \frac{\sum_{i=1}^n p_{ij}^{(k+1)} (X_i - \mu_j^{(k+1)}) (X_i - \mu_j^{(k+1)})'}{\sum_{i=1}^n p_{ij}^{(k+1)}}
+    \end{gathered}
+    \end{equation}
+  \end{enumerate}
+\end{enumerate}
+
+
 \subsection{Deterministic Annealing}
 
+Ueda and Nakano proposed a modification of the EM algorithm that they call Deterministic Annealing Expectation Maximization (DAEM) \cite{uedanakano98}. This algorithm is inspired by both simulated annealing and the EM algorithm, and introduces an inverse temperature parameter $\beta$ that determines how ``smoothed'' the clusters are. The DAEM algorithm is the same as EM, except replacing Equation~\ref{eq:em_estep} (the E-step) with
+  \begin{equation} \label{eq:da_estep}
+  p_{ij}^{(k+1)}
+    = \frac{\left( \pi_j^{(k)} P_j(X_i \cond \mu_j^{(k)}, \Sigma_j^{(k)}) \right)^{\beta_k}}{\sum_{j'=1}^J \left( \pi_{j'}^{(k)} P_{j'}(X_i \cond \mu_{j'}^{(k)}, \Sigma_{j'}^{(k)}) \right)^{\beta_k}}
+  \end{equation}
+
+When $\beta = 0$ the posterior membership probabilities become uniform, and when $\beta = 1$, we recover the standard EM algorithm. Generally we choose $\beta_0$ to be small, which does some smoothing between clusters, and allow $\beta_k \to 1$ as our iterations increase.
+
+
 \section{Simulated Annealing}
+
+Simulated annealing is a stochastic optimization algorithm designed to find global optima in optimization problems with large state spaces \cite{kirkpatrickgelattvecchi83}. Consider the maximization problem
+\begin{equation*}
+x^* = \argmax_{x \in \Omega} f(x)
+\end{equation*}
+The general simulated annealing algorithm proceeds as follows:
+\begin{enumerate}
+\item Initialize at some point $x^{(0)}$ and initial temperature $T_0$.
+\item Repeat until a computing budget is met:
+  \begin{enumerate}
+  \item Consider some stochastically chosen candidate point $x = g(x^{(k)})$.
+  \item If $f(x) > f(x^{(k)})$, accept the candidate move and set $x^{(k+1)} = x$.
+  \item Otherwise, accept the candidate move with probability $e^{(f(x) - f(x^{(k)})/T_k}$.
+  \item If the candidate move is not accepted, then stay at the current point $x^{(k+1)} = x^{(k)}$.
+  \item Cool the temperature $T_{k+1} = \alpha T_k$ for some $0 \ll \alpha < 1$.
+  \end{enumerate}
+\end{enumerate}
+
+Note that the current temperature $T_k$ determines how willing the algorithm is to accept moves that lower the objective function. For high temperatures, the algorithm should accept almost any move and uses this to explore the state space. As the temperature cools, the algorithm tends towards objective-improving moves and hopefully converges to the global optima.
+
+In order to apply this algorithm to mixture models, we consider possible values of the latent mixture membership variable $Z$ as the state space to optimize over. Given a realization of $Z$, we can write the log-likelihood function as
+\begin{equation*}
+\log P(X) = \sum_{i=1}^n \sum_{j=1}^J \I(Z_i = j) \log P_j(X_i \cond \theta_j)
+\end{equation*}
+Plugging in the MLE estimates for $\theta_j$ conditional on $Z$, we therefore can apply simulated annealing to the objective function
+\begin{equation} \label{eq:sa_obj}
+f(Z) = \sum_{i=1}^n \sum_{j=1}^J \I(Z_i = j) \log P_j(X_i \cond \hat{\theta}_j)
+\end{equation}
+
+So we need a method of selecting new candidate realizations of $Z$ in order to implement the algorithm. One possible way, and the one that is closest to how simulated annealing is normally implemented, is to randomly select an element of $Z$ to switch the group membership of. In this application, however, the sheer amount of switches that it requires to converge means that this strategy is not competitive with existing algorithms. Instead, we will again draw inspiration from the EM algorithm in order to develop a simulated annealing approach that updates the entire dataset at once.
+
+
 \subsection{Stochastic EM}
+
+We develop a new algorithm that we call Stochastic EM (SEM). This is an implementation of simulated annealing that randomly draws new realizations for the entire $Z$ vector at each iteration. The SEM algorithm roughly follows the same structure as the EM algorithm:
+\begin{enumerate}
+\item Initialize parameters for each distribution $\mu_j^{(0)}$, $\Sigma_j^{(0)}$, mixing components $\pi_j^{(0)}$, and choose an initial temperature $T_0$.
+\item Iterate the following steps until a computing budget is met:
+  \begin{enumerate}
+  \item Estimate the membership probabilities $p_{ij}^{(k+1)}$ using the current parameter estimates $\mu_j^{(k)}$, $\Sigma_j^{(k)}$ and mixing components $\pi_j^{(k)}$. Note that this is the exact same calculation as Equation~\ref{eq:em_estep}, the E-step from the EM algorithm.
+  \item Randomly draw candidate memberships $\tilde{Z}$ vector using
+    \begin{equation*}
+    \tilde{Z}_i \dist \mt{Mult}\left(p_{i1}^{(k+1)}, \dots, p_{iJ}^{(k+1)}\right)
+    \end{equation*}
+  \item Estimate candidate parameters and mixing components using maximum likelihood estimation conditional on the memberships $\tilde{Z}$. This is analagous to the M-step in EM (\ref{eq:em_mstep}).
+    \begin{equation} \label{eq:sa_mstep}
+    \begin{gathered}
+    \tilde{\pi}_j = \frac{1}{n} \sum_{i=1}^n \I(\tilde{Z}_i = j) \qquad
+    \tilde{\mu}_j = \frac{\sum_{i=1}^n \I(\tilde{Z}_i = j) X_i}{\sum_{i=1}^n \I(\tilde{Z}_i = j)} \\
+    \tilde{\Sigma}_j = \frac{\sum_{i=1}^n \I(\tilde{Z}_i = j) (X_i - \tilde{\mu}_j) (X_i - \tilde{\mu}_j)'}{\sum_{i=1}^n \I(\tilde{Z}_i = j)}
+    \end{gathered}
+    \end{equation}
+  \item Calculate the candidate objective function
+    \begin{equation*}
+    f(\tilde{Z}) = \sum_{i=1}^n \sum_{j=1}^J \I(\tilde{Z}_i = j) \log P_j(X_i \cond \tilde{\mu}_j, \tilde{\Sigma}_j)
+    \end{equation*}
+  \item Update:
+    \begin{enumerate}
+    \item If $f(\tilde{Z}) > f(Z^{(k)})$ then accept the candidate memberships and update
+      \begin{align*}
+      Z^{(k+1)} &= \tilde{Z} & \pi^{(k+1)} &= \tilde{\pi} \\
+      \mu^{(k+1)} &= \tilde{\mu} & \Sigma^{(k+1)} &= \tilde{\Sigma}
+      \end{align*}
+    \item Otherwise, acccept the candidate memberships with probability $e^{(f(x) - f(x^{(k)})/T_k}$.
+    \item If the candidate move is not accepted, then stay at the current point $Z^{(k+1)} = Z^{(k)}$.
+    \end{enumerate}
+  \item Cool the temperature $T_{k+1} = \alpha T_{k}$.
+  \end{enumerate}
+\end{enumerate}
+
+Comparing this to the regular EM algorithm, this is effectively a discrete, stochastic version. Instead of using the membership probabilities, SEM only allows for discrete memberships and randomly chooses memberships at each iteration using the estimated probabilities. Due to this inaccuracy, we expect that the SEM will lose some convergence speed relative to standard EM, but hope that its discrete and stochastic nature will help it avoid local optima and saddle points.
+
+
 
 \section{Results}
 
