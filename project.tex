@@ -172,7 +172,7 @@ Ueda and Nakano proposed a modification of the EM algorithm that they call Deter
     = \frac{\left( \pi_j^{(k)} P_j(X_i \cond \mu_j^{(k)}, \Sigma_j^{(k)}) \right)^{\beta_k}}{\sum_{j'=1}^J \left( \pi_{j'}^{(k)} P_{j'}(X_i \cond \mu_{j'}^{(k)}, \Sigma_{j'}^{(k)}) \right)^{\beta_k}}
   \end{equation}
 
-When $\beta = 0$ the posterior membership probabilities become uniform, and when $\beta = 1$, we recover the standard EM algorithm. Generally we choose $\beta_0$ to be small, which does some smoothing between clusters, and allow $\beta_k \to 1$ as our iterations increase.
+Note that when $\beta = 0$ the posterior membership probabilities become uniform, and when $\beta = 1$, we recover the standard EM algorithm. Generally we choose $\beta_0$ to be small, which does some smoothing between clusters, and allow $\beta_k \to 1$ as our iterations increase.
 
 
 \section{Simulated Annealing}
@@ -210,7 +210,7 @@ So we need a method of selecting new candidate realizations of $Z$ in order to i
 
 \subsection{Stochastic EM}
 
-We develop a new algorithm that we call Stochastic EM (SEM). This is an implementation of simulated annealing that randomly draws new realizations for the entire $Z$ vector at each iteration. The SEM algorithm roughly follows the same structure as the EM algorithm:
+We propose a new algorithm that we call Stochastic EM (SEM). This is an implementation of simulated annealing that randomly draws new realizations for the entire $Z$ vector at each iteration. The SEM algorithm roughly follows the same structure as the EM algorithm:
 \begin{enumerate}
 \item Initialize parameters for each distribution $\mu_j^{(0)}$, $\Sigma_j^{(0)}$, mixing components $\pi_j^{(0)}$, and choose an initial temperature $T_0$.
 \item Iterate the following steps until a computing budget is met:
