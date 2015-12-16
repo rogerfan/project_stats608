@@ -149,6 +149,7 @@ def sim_anneal(data, init_mu, init_sigma, init_mix, temp_func,
         p = 1
     if seed is not None:
         np.random.seed(seed)
+    min_obs = (p+1)*p/2 + p
 
     # Initialize arrays
     curr_mu = init_mu.copy()
@@ -184,7 +185,13 @@ def sim_anneal(data, init_mu, init_sigma, init_mix, temp_func,
         pdfs = calc_pdfs(data, curr_mu, curr_sigma)
         probs = calc_probs(pdfs, curr_mix, 1.)
 
-        cand_classes = sample_multinomials(probs)
+        check = True
+        while check:
+            cand_classes = sample_multinomials(probs)
+            check = False
+            for k in range(num_groups):
+                check = check and np.sum(cand_classes[:,k] == 1) < min_obs
+
         for k in range(num_groups):
             cand_mu[k] = np.mean(data[cand_classes[:,k] == 1], axis=0)
             cand_sigma[k] = np.cov(data[cand_classes[:,k] == 1], rowvar=0)
@@ -288,24 +295,24 @@ if __name__ == '__main__':
         np.column_stack((logliks_sa['curr'], logliks_sa['best'])),
         header='logliks_curr, logliks_best', delimiter=',', comments='')
 
-    n_runs = 100
-    np.random.seed(1913463)
-    for t in (950, 975, 992, 999):
-        print(t)
-        run_storage = np.zeros((251*n_runs, 4))
-        for i in range(n_runs):
-            _, (loglik, time) = sim_anneal(
-                x, init_mu, init_sigma, init_mix, num_iter=250,
-                temp_func=lambda i: max(1e-4, 100*(t/1000)**i))
-            run_storage[i*251:(i+1)*251, 0] = i
-            run_storage[i*251:(i+1)*251, 1] = np.arange(251)
-            run_storage[i*251:(i+1)*251, 2] = loglik['curr']
-            run_storage[i*251:(i+1)*251, 3] = loglik['best']
+    # n_runs = 100
+    # np.random.seed(1913463)
+    # for t in (950, 975, 992, 999):
+    #     print(t)
+    #     run_storage = np.zeros((251*n_runs, 4))
+    #     for i in range(n_runs):
+    #         _, (loglik, time) = sim_anneal(
+    #             x, init_mu, init_sigma, init_mix, num_iter=250,
+    #             temp_func=lambda i: max(1e-4, 100*(t/1000)**i))
+    #         run_storage[i*251:(i+1)*251, 0] = i
+    #         run_storage[i*251:(i+1)*251, 1] = np.arange(251)
+    #         run_storage[i*251:(i+1)*251, 2] = loglik['curr']
+    #         run_storage[i*251:(i+1)*251, 3] = loglik['best']
 
-        np.savetxt(
-            './intermediate_data/sa_t{}.csv'.format(t), run_storage,
-            header='run, iter, loglik_curr, loglik_best',
-            delimiter=',', comments='')
+    #     np.savetxt(
+    #         './intermediate_data/sa_t{}.csv'.format(t), run_storage,
+    #         header='run, iter, loglik_curr, loglik_best',
+    #         delimiter=',', comments='')
 
     # Plotting
     data_mu = np.array(
