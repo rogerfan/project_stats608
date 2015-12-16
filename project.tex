@@ -138,7 +138,7 @@ We propose a new algorithm that we call Stochastic EM (SEM) and compare it to tr
 
 \subsection{Expectation-Maximization}
 
-In their paper first proposing the general EM Algorithm \cite{dempsterlairdrubin77}, Dempster et. al. demonstrate its applicability to mixture model estimation. Due to EM's easy implementation and nice theoretical properties, EM is the standard method of estimating parametric finite mixture models. We quickly review the EM algorithm for estimating finite Gaussian mixture models as it forms the basis of the other methods.
+In their paper first proposing the general EM Algorithm \cite{dempsterlairdrubin77}, Dempster et. al. demonstrate its applicability to mixture model estimation, and EM has become the standard method of estimating parametric finite mixture models.
 
 Assume that data vectors $X_1, \dots, X_n$ are i.i.d. draws from the $J$-component mixture distribution
 \begin{equation*}
@@ -179,7 +179,7 @@ Despite its power and ubiquity, the EM algorithm is known to struggle in several
 
 Figure~\ref{fig:em_struggles} demonstrates the effects of these issues with some simple comparisons. When the mixing components are unbalanced or there are significantly overlapping distributions, the EM algorithm tends to get stuck in slow-convergence areas, likely near saddle points, that are not as much of an issue in the easier settings. In both of these cases the EM algorithm eventually escapes and converges to the maximum, but the convergence rate is severely effected.
 
-\begin{figure}[htb] \centering
+\begin{figure}[t] \centering
   \begin{subfigure}[t]{.45\linewidth}
     \includegraphics[width=\linewidth]{include/em_imbalance.pdf}
     \caption{Unbalanced Mixing} \label{fig:em_struggles_unbal}
@@ -203,7 +203,7 @@ Ueda and Nakano proposed a modification of the EM algorithm that they call Deter
 
 Note that when $\beta = 0$ the posterior membership probabilities become uniform, and when $\beta = 1$, we recover the standard EM algorithm. Generally we choose $\beta_0$ to be small, which does some smoothing between clusters, and allow $\beta_k \to 1$ as our iterations increase.
 
-The hope is that, by initially optimizing over the smoothed version of the likelihood, local optima and saddle points can be avoided. Unfortunately, initial progress is much slower until $\beta$ gets close to 1, but by avoiding the slow convergence areas shown in Figure~\ref{fig:em_struggles} overall convergence is likely improved.
+% The hope is that, by initially optimizing over the smoothed version of the likelihood, local optima and saddle points can be avoided. Unfortunately, initial progress is much slower until $\beta$ gets close to 1, but by avoiding the slow convergence areas shown in Figure~\ref{fig:em_struggles} overall convergence is likely improved.
 
 
 \section{Simulated Annealing} \label{sec:simanneal}
@@ -236,7 +236,7 @@ Plugging in the MLE estimates for $\theta_j$ conditional on $Z$, we therefore ca
 f(Z) = \sum_{i=1}^n \sum_{j=1}^J \I(Z_i = j) \log P_j(X_i \cond \hat{\theta}_j)
 \end{equation}
 
-In order to implement simulated annealing to estimate mixture models, we must find a method of selecting new candidate realizations of $Z$. The implementation that adheres most closely to the traditional simulated annealing algorithm stated above randomly selects one observation and switches its membership. In this practice we found that the number of switches required to to achieve convergence made the method uncompetitive with existing algorithms. Instead, we will again draw inspiration from the EM algorithm in order to develop a simulated annealing approach that updates the entire dataset at once.
+% In order to implement simulated annealing to estimate mixture models, we must find a method of selecting new candidate realizations of $Z$. The implementation that adheres most closely to the traditional simulated annealing algorithm stated above randomly selects one observation and switches its membership. In this practice we found that the number of switches required to to achieve convergence made the method uncompetitive with existing algorithms. Instead, we will again draw inspiration from the EM algorithm in order to develop a simulated annealing approach that updates the entire dataset at once.
 
 
 \subsection{Stochastic EM}
@@ -288,14 +288,14 @@ Compared to the regular EM algorithm, this is effectively a discrete, stochastic
 
 We simulate data from a 3-component Gaussian mixture model to compare these methods with. In order to provide a more challenging optimization environment, we include significant overlap and somewhat unbalanced mixing coefficients.\footnote{In particular, we set $\mu_1 = (0, 2)'$, $\mu_2 = (2, 1)'$, $\mu_3 = (2, 3)'$; $\Sigma_1 = \begin{pmatrix} 1 & 0.1 \\ 0.1 & 0.3 \end{pmatrix}$, $\Sigma_2 = \begin{pmatrix} 1 & -0.1 \\ -0.1 & 1 \end{pmatrix}$, $\Sigma_3 = \begin{pmatrix} 0.5 & -0.5 \\ -0. & 1 \end{pmatrix}$; and $\pi_1 = 0.15$, $\pi_2 = 0.70$, $\pi_3 = 0.15$.} Figure~\ref{fig:sim_data} shows an example of $n=2000$ draws from our mixture model. The majority of our analysis will be run on this data set.
 
-\begin{figure}[htb] \centering
+\begin{figure}[t] \centering
   \includegraphics[width=.45\linewidth]{include/sim_data.pdf}
   \caption{2000 draws from our 3-component Gaussian mixture model.}
   \label{fig:sim_data}
 \end{figure}
 
 
-\subsection{Estimation}
+\subsection{Simulation results}
 
 Figure~\ref{fig:algcomps} shows the results of EM, DAEM, and SEM runs using the same initial points for each algorithm.\footnote{SEM is estimated using an initial temperature of $T_0 = 100$ and a cooling schedule of $\alpha = 0.992$.} We can see that the EM algorithm is exhibiting the same issues described in Section~\ref{subsc:em_issues}, where the algorithm is caught in a slow-convergence area for a significant amount of time. As expected, DAEM has slower initial convergence but manages to avoid the slow-convergence area, and so has better overall convergence performance.
 
@@ -312,6 +312,7 @@ Figure~\ref{fig:algcomps} shows the results of EM, DAEM, and SEM runs using the 
   \label{fig:algcomps}
 \end{figure}
 
+Stochastic EM seems to be fairly competitive with EM and DAEM, striking a middle point between the two. It attains the fast initial convergence of EM, but its stochastic nature allows it to escape the slow convergence area and more quickly improve after that. It also reaches a significantly higher final likelihood than either of the two other algorithms. Figure~\ref{fig:algcomps_bytime} shows how each of the algorithms performs against time. Stochastic EM adds some computation to each step, but is still competitive with the other two methods. All three algorithms have the same order of computational complexity per iteration.
 
 \begin{figure}[htb] \centering
   \begin{subfigure}[t]{.45\linewidth}
@@ -326,9 +327,9 @@ Figure~\ref{fig:algcomps} shows the results of EM, DAEM, and SEM runs using the 
   \label{fig:sa}
 \end{figure}
 
+Figure~\ref{fig:sa_singlerun} shows how the likelihood of the current position (as opposed to the best-so-far) evolves in SEM. We can see that the algorithm's ability to accept objective-worsening moves allows it to further explore the state space and hopefully find better areas despite non-convexity.
 
-\subsection{Additional Simulations}
-
+We must keep in mind, however, that SEM is a stochastic algorithm. Figure~\ref{fig:sa_multrun} shows 10 example SEM runs on this data set, each using the exact same initial values. The final likelihood for even the worst-case SEM run is similar to those attained by EM and DAEM, but there is significant spread in both the convergence speed and final values. With enough computational time and slow enough cooling the algorithm should attain similar final results, but its stochastic nature means that it may not be well-suited for some applications.
 
 \begin{figure}[htb] \centering
   \begin{subfigure}[t]{.45\linewidth}
@@ -343,9 +344,12 @@ Figure~\ref{fig:algcomps} shows the results of EM, DAEM, and SEM runs using the 
   \label{fig:sims}
 \end{figure}
 
+To further explore the effectiveness of SEM, we compared all three optimization methods on 100 simulated datasets for varying sample sizes. Figure~\ref{fig:sims} shows the average log-likelihoods of eah method for these simulations. We can see that, on average, SEM is competitive with or outperforms both EM and DAEM. DAEM in particular seems to perform worse for smaller data sets, but has competitive performance with larger sample sizes.
+
 
 \section{Conclusion} \label{sec:conclusion}
 
+This is the conclusion
 
 
 % \vfill
