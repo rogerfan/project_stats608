@@ -122,14 +122,34 @@
 \maketitle
 
 
-\section{Introduction}
+\section{Introduction} \label{sec:intro}
 
-\section{Previous Algorithms}
+
+Mixture models are a common and powerful method for clustering and distribution estimation. Data is modeled as a ``mixture'' of multiple simple distributions, most often Gaussian, where the goal is to estimate the parameters of each distribution in the mixture. Clustering problems are unsupervised learning problems, meaning that we receive observations without knowing to which cluster they belong. Generally, mixture membership is modeled as a latent variable and parameters are estimated conditional on the latent class variable. Because the set of possible values of this latent variable can be extremely large (for instance, for $n$ data points from a two-component mixture there are $2^n$ possible latent variable realizations), direct maximization of the likelihood is generally difficult.
+
+The most common method used to estimate parameters in this setting is the Expectation-Maximization (EM) algorithm \cite{dempsterlairdrubin77}. The EM algorithm is an iterative optimization method used to optimize a lower bound on the likelihood. There are, however, several issues with using the EM algorithm even in this fairly simple case. Mixture models often have multiple local optima. Since EM is a hill-climbing algorithm, it may converge to a local optimum rather than a global optima \cite{wu83}. This makes EM sensitive to the chosen starting point, and various ad-hoc methods (such as multiple start or random restart) are used in practice to attempt to mitigate this issue. It can also be slow to converge for a variety of reasons, including when the mixing coefficients are imbalanced or when there is significant overlap in the component distributions.
+
+In this paper, we explore other methods that attempt to mitigate EM's issues by borrowing techniques from other optimization paradigms. Simulated annealing \cite{kirkpatrickgelattvecchi83} is of particular interest to the authors of this paper. There have been several attempts to apply annealing-inspired algorithms to mixture model estimation. Most of these methods tend to mimic EM, but replace the traditional ``E-step'' with a computationally attractive alternative. Such methods seek to explore the state space without directly hill-climbing, and possibly in a non-deterministic matter. Exploring the entire state space hopefully allows the algorithm to avoid local maxima and converge to a global maxima. The most notable algorithm is Deterministic Annealing EM (DAEM), proposed by Ueda and Nakano in 1998 \cite{uedanakano98}. As the name suggests, this algorithm replaces the stochastic nature of simulated annealing with a deterministic variant to hopefully avoid the local optima problem. Additionally, we propose a stochastic version of EM (SEM) and show that it is competitive with existing methods.
+
+
+\section{Settings Where EM struggles}
+
+Before we discuss the algorithms for estimating mixture models in section \ref{sec:algos}, we briefly describe settings where EM struggles. \cite{uedanakano98} show that when clusters have a lot of overlap, convergence of EM tends to be much slower than when clusters are well separated in the data space. Unfortunately, interesting problems are generally those with a lot of overlap, since unsupervised learning problems are much more difficult in these settings. Additionally, \cite{uedanakano98} showed that when mixing probabilities are unbalanced, meaning the data come predominantly from one class, EM can be slow to converge as well. In figure we see two comparisons that support \cite{uedanakano98} findings.
+
+
+\begin{figure}[ht]
+   \centering
+   \includegraphics[width=.5\textwidth]{kitten.png}
+   \label{em}
+   \caption{EM is slower under these settings...}
+\end{figure}
+
+\section{Previous Algorithms} \label{sec:algos}
 
 
 \subsection{Expectation-Maximization}
 
-In their paper first proposing the general EM Algorithm \cite{dempsterlairdrubin77}, Dempster et. al. demonstrate its applicability to mixture model estimation. Due to EM's easy implementation and nice theoretical properties, EM is the standard method of estimating parametric finite mixture models. We quickly review the EM algorithm for estimating finite Gaussian mixture models.
+In their paper first proposing the general EM Algorithm \cite{dempsterlairdrubin77}, Dempster et. al. demonstrate its applicability to mixture model estimation. Due to EM's easy implementation and nice theoretical properties, EM is the standard method of estimating parametric finite mixture models. We quickly review the EM algorithm for estimating finite Gaussian mixture models as it forms the basis of the other methods.
 
 Assume that data vectors $X_1, \dots, X_n$ are i.i.d. draws from the $J$-component mixture distribution
 \begin{equation*}
@@ -252,6 +272,14 @@ Comparing this to the regular EM algorithm, this is effectively a discrete, stoc
 
 
 \section{Results}
+
+\begin{figure}[ht]
+   \centering
+   \includegraphics[width=.5\textwidth]{kitten.png}
+   \label{fig:kitten}
+   \caption{Kittens love EM and flowers}
+\end{figure}
+
 
 \subsection{Data Generation}
 \subsection{Estimation}
