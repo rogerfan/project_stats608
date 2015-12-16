@@ -1,1 +1,1 @@
-Folder for storing intermediate results.
+Folder for storing figures.
