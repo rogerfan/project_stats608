@@ -129,7 +129,7 @@
 
 \subsection{Expectation-Maximization}
 
-In their paper first proposing the general EM Algorithm \cite{dempsterlairdrubin77}, Dempster et. al. also applied it to mixture model estimation, and it has become the standard method of estimating parametric finite mixture models.
+In their paper first proposing the general EM Algorithm \cite{dempsterlairdrubin77}, Dempster et. al. demonstrate its applicability to mixture model estimation. Due to EM's easy implementation and nice theoretical properties, EM is the standard method of estimating parametric finite mixture models. We quickly review the EM algorithm for estimating finite Gaussian mixture models.
 
 Assume that data vectors $X_1, \dots, X_n$ are i.i.d. draws from the $J$-component mixture distribution
 \begin{equation*}
@@ -194,7 +194,7 @@ The general simulated annealing algorithm proceeds as follows:
   \end{enumerate}
 \end{enumerate}
 
-Note that the current temperature $T_k$ determines how willing the algorithm is to accept moves that lower the objective function. For high temperatures, the algorithm should accept almost any move and uses this to explore the state space. As the temperature cools, the algorithm tends towards objective-improving moves and hopefully converges to the global optima.
+Note that the current temperature $T_k$ determines how willing the algorithm is to accept moves that lower the objective function. For high temperatures, the algorithm accepts almost any move and uses this to explore the state space. As the temperature cools, the algorithm tends towards objective-improving moves and hopefully converges to the global optima.
 
 In order to apply this algorithm to mixture models, we consider possible values of the latent mixture membership variable $Z$ as the state space to optimize over. Given a realization of $Z$, we can write the log-likelihood function as
 \begin{equation*}
@@ -205,7 +205,8 @@ Plugging in the MLE estimates for $\theta_j$ conditional on $Z$, we therefore ca
 f(Z) = \sum_{i=1}^n \sum_{j=1}^J \I(Z_i = j) \log P_j(X_i \cond \hat{\theta}_j)
 \end{equation}
 
-So we need a method of selecting new candidate realizations of $Z$ in order to implement the algorithm. One possible way, and the one that is closest to how simulated annealing is normally implemented, is to randomly select an element of $Z$ to switch the group membership of. In this application, however, the sheer amount of switches that it requires to converge means that this strategy is not competitive with existing algorithms. Instead, we will again draw inspiration from the EM algorithm in order to develop a simulated annealing approach that updates the entire dataset at once.
+
+In order to implement simulated annealing to estimate mixture models, we must find a method of selecting new candidate realizations of $Z$. The implementation that adheres most closely to the traditional simulated annealing algorithm stated above randomly selects one observation and switches its membership. In this practice we found that the number of switches required to to achieve convergence made the method uncompetitive with existing algorithms. Instead, we will again draw inspiration from the EM algorithm in order to develop a simulated annealing approach that updates the entire dataset at once.
 
 
 \subsection{Stochastic EM}
@@ -216,7 +217,7 @@ We develop a new algorithm that we call Stochastic EM (SEM). This is an implemen
 \item Iterate the following steps until a computing budget is met:
   \begin{enumerate}
   \item Estimate the membership probabilities $p_{ij}^{(k+1)}$ using the current parameter estimates $\mu_j^{(k)}$, $\Sigma_j^{(k)}$ and mixing components $\pi_j^{(k)}$. Note that this is the exact same calculation as Equation~\ref{eq:em_estep}, the E-step from the EM algorithm.
-  \item Randomly draw candidate memberships $\tilde{Z}$ vector using
+  \item Randomly draw candidate memberships $\tilde{Z}=\left[\tilde{Z}_1,\ldots,\tilde{Z}_n\right]^T$ vector, where
     \begin{equation*}
     \tilde{Z}_i \dist \mt{Mult}\left(p_{i1}^{(k+1)}, \dots, p_{iJ}^{(k+1)}\right)
     \end{equation*}
