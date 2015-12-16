@@ -9,6 +9,20 @@ library('extrafont')
 
 true_loglik = -5196.976212643527
 
+data = read.csv('./intermediate_data/sim_data.csv')
+
+data$z = factor(data$z)
+gplot_data = ggplot(data, aes(x=x1, y=x2, color=z)) +
+    geom_point(alpha=.8) +
+    xlab('') + ylab('') +
+    theme_bw() +
+    theme(legend.position="none")
+
+pdf('./figures/sim_data.pdf', height=5, width=6, family='CM Roman')
+print(gplot_data)
+dev.off()
+
+
 results = read.csv('./intermediate_data/singlerun_results.csv')
 results$iter = 1:nrow(results)
 results = reshape(results, direction='long',
@@ -18,7 +32,7 @@ results = reshape(results, direction='long',
     idvar='iter', timevar='method', sep='_')
 results$method[results$method == 'em'] = 'EM Algorithm'
 results$method[results$method == 'da'] = 'Deterministic Anneal'
-results$method[results$method == 'sa'] = 'Simulated Anneal'
+results$method[results$method == 'sa'] = 'Stochastic EM'
 
 
 sa = read.csv('./intermediate_data/sa_singlerun.csv')
@@ -127,33 +141,33 @@ gplot_sameans = ggplot(sa_means, aes(x=iter, y=loglik, color=alpha)) +
 
 
 
-pdf('./figures/results_byiter.pdf', height=5, width=5, family='CM Roman')
+pdf('./figures/results_byiter.pdf', height=4.5, width=5.5, family='CM Roman')
 print(gplot_byiter)
 dev.off()
 
-pdf('./figures/results_bytime.pdf', height=5, width=5, family='CM Roman')
+pdf('./figures/results_bytime.pdf', height=4.5, width=5.5, family='CM Roman')
 print(gplot_bytime)
 dev.off()
 
-pdf('./figures/sa_singlerun.pdf', height=5, width=5, family='CM Roman')
+pdf('./figures/sa_singlerun.pdf', height=4.5, width=5.5, family='CM Roman')
 print(gplot_singlesa)
 dev.off()
 
 
-pdf('./figures/sa950.pdf', height=5, width=5, family='CM Roman')
-print(gplot_sa950)
-dev.off()
-pdf('./figures/sa975.pdf', height=5, width=5, family='CM Roman')
-print(gplot_sa975)
-dev.off()
-pdf('./figures/sa992.pdf', height=5, width=5, family='CM Roman')
+# pdf('./figures/sa950.pdf', height=4.5, width=5.5, family='CM Roman')
+# print(gplot_sa950)
+# dev.off()
+# pdf('./figures/sa975.pdf', height=4.5, width=5.5, family='CM Roman')
+# print(gplot_sa975)
+# dev.off()
+pdf('./figures/sa992.pdf', height=4.5, width=5.5, family='CM Roman')
 print(gplot_sa992)
 dev.off()
-pdf('./figures/sa999.pdf', height=5, width=5, family='CM Roman')
-print(gplot_sa999)
-dev.off()
+# pdf('./figures/sa999.pdf', height=4.5, width=5.5, family='CM Roman')
+# print(gplot_sa999)
+# dev.off()
 
 
-pdf('./figures/sameans_byalpha.pdf', height=5, width=5, family='CM Roman')
-print(gplot_sameans)
-dev.off()
+# pdf('./figures/sameans_byalpha.pdf', height=4.5, width=5.5, family='CM Roman')
+# print(gplot_sameans)
+# dev.off()
