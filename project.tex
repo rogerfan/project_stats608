@@ -124,15 +124,16 @@
 
 \section{Introduction} \label{sec:intro}
 
+Mixture models are a common and powerful method for clustering and distribution estimation. Data is modeled as a ``mixture'' of multiple simple distributions, most often Gaussian, where the goal is to estimate the parameters of each distribution in the mixture. In clustering problems we receive observations without knowing to which cluster they belong, a type of unsupervised learning. Mixture membership can be modeled as a latent (unobserved) variable and the model evaluated under a likelihood framework. However, because the state space of this latent variable can be extremely large (for instance, for $n$ data points from a $k$-component mixture there are $k^n$ possible latent variable realizations), direct maximization of the likelihood is generally infeasible.
 
-Mixture models are a common and powerful method for clustering and distribution estimation. Data is modeled as a ``mixture'' of multiple simple distributions, most often Gaussian, where the goal is to estimate the parameters of each distribution in the mixture. Clustering problems are unsupervised learning problems, meaning that we receive observations without knowing to which cluster they belong. Generally, mixture membership is modeled as a latent variable and parameters are estimated conditional on the latent class variable. Because the set of possible values of this latent variable can be extremely large (for instance, for $n$ data points from a two-component mixture there are $2^n$ possible latent variable realizations), direct maximization of the likelihood is generally difficult.
+The most common method used to estimate parameters in this setting is the Expectation-Maximization (EM) algorithm \cite{dempsterlairdrubin77}. The EM algorithm is an iterative optimization method used to optimize a lower bound on the likelihood. There are, however, several issues with using the EM algorithm even in this fairly simple case. Mixture models often have multiple local optima. Since EM is a hill-climbing algorithm, it may converge to a local optimum rather than a global optima \cite{wu83}. This makes EM sensitive to the chosen starting point, and various ad-hoc methods (such as multiple start or random restart) are used in practice to attempt to mitigate this issue. It can also be slow to converge in several scenarios, including when the mixing coefficients are imbalanced or when there is significant overlap in the component distributions.
 
-The most common method used to estimate parameters in this setting is the Expectation-Maximization (EM) algorithm \cite{dempsterlairdrubin77}. The EM algorithm is an iterative optimization method used to optimize a lower bound on the likelihood. There are, however, several issues with using the EM algorithm even in this fairly simple case. Mixture models often have multiple local optima. Since EM is a hill-climbing algorithm, it may converge to a local optimum rather than a global optima \cite{wu83}. This makes EM sensitive to the chosen starting point, and various ad-hoc methods (such as multiple start or random restart) are used in practice to attempt to mitigate this issue. It can also be slow to converge for a variety of reasons, including when the mixing coefficients are imbalanced or when there is significant overlap in the component distributions.
+In this paper, we explore other methods that attempt to mitigate EM's issues by borrowing techniques from other optimization paradigms. Simulated annealing \cite{kirkpatrickgelattvecchi83}, a stochastic method designed to find global optima in large state-spaces, is of particular interest. There have been several previous attempts to apply annealing-inspired algorithms to mixture model estimation. Most of these methods tend to mimic EM, but replace the traditional ``E-step'' with a computationally attractive alternative. Such methods seek to explore the state space without directly hill-climbing, and possibly in a non-deterministic matter. The goal is to avoid local maxima and converge to a global maxima. The most notable algorithm is Deterministic Annealing EM (DAEM), proposed by Ueda and Nakano in 1998 \cite{uedanakano98}. As the name suggests, this algorithm replaces the stochastic nature of simulated annealing with a deterministic variant to hopefully avoid the local optima problem.
 
-In this paper, we explore other methods that attempt to mitigate EM's issues by borrowing techniques from other optimization paradigms. Simulated annealing \cite{kirkpatrickgelattvecchi83} is of particular interest to the authors of this paper. There have been several attempts to apply annealing-inspired algorithms to mixture model estimation. Most of these methods tend to mimic EM, but replace the traditional ``E-step'' with a computationally attractive alternative. Such methods seek to explore the state space without directly hill-climbing, and possibly in a non-deterministic matter. Exploring the entire state space hopefully allows the algorithm to avoid local maxima and converge to a global maxima. The most notable algorithm is Deterministic Annealing EM (DAEM), proposed by Ueda and Nakano in 1998 \cite{uedanakano98}. As the name suggests, this algorithm replaces the stochastic nature of simulated annealing with a deterministic variant to hopefully avoid the local optima problem. Additionally, we propose a stochastic version of EM (SEM) and show that it is competitive with existing methods.
+We propose a new algorithm that we call Stochastic EM (SEM) and compare it to traditional EM and DAEM. We show that SEM is competitive with existing methods, and often exhibits better convergence rates on average. When the computing budget is high enough SEM can converge to significantly higher-likelihood states than EM or DAEM. However, due to its stochastic nature, SEM is not well-suited for all situations.
 
 
-\section{Previous Algorithms} \label{sec:algos}
+\section{Previous Algorithms} \label{sec:prev_algos}
 
 
 \subsection{Expectation-Maximization}
@@ -172,22 +173,22 @@ To estimate this model, we can use the EM algorithm as follows:
 \end{enumerate}
 
 
-\subsection{Issues with EM}
+\subsection{Issues with EM} \label{subsc:em_issues}
 
 Despite its power and ubiquity, the EM algorithm is known to struggle in several common scenarios. Ueda and Nakano show that when clusters have a lot of overlap, convergence of EM tends to be much slower than when clusters are well separated in the data space \cite{uedanakano98}. Unfortunately, interesting problems are generally those with a lot of overlap, since unsupervised learning problems are much more difficult in these settings. Additionally, Naim and Gildea show that when mixing probabilities are unbalanced, meaning the data come predominantly from one class, EM can be very slow to converge as well \cite{naimgildea12}.
 
-Figure~\ref{fig:em_struggles} shows some simple comparisons that support these results. When the mixing components are unbalanced or there are significantly overlapping distributions, the EM algorithm tends to get stuck in slow-convergence areas, likely near saddle points, that are not as much of an issue in the easier settings. In both of these cases the EM algorithm eventually escapes and converges to the maximum, but the convergence rate is severely effected.
+Figure~\ref{fig:em_struggles} demonstrates the effects of these issues with some simple comparisons. When the mixing components are unbalanced or there are significantly overlapping distributions, the EM algorithm tends to get stuck in slow-convergence areas, likely near saddle points, that are not as much of an issue in the easier settings. In both of these cases the EM algorithm eventually escapes and converges to the maximum, but the convergence rate is severely effected.
 
 \begin{figure}[htb] \centering
-  \begin{subfigure}[t]{.49\linewidth}
+  \begin{subfigure}[t]{.45\linewidth}
     \includegraphics[width=\linewidth]{include/unbal_mix.pdf}
     \caption{Unbalanced Mixing} \label{fig:em_struggles_unbal}
   \end{subfigure}
-  \begin{subfigure}[t]{.49\linewidth}
+  \begin{subfigure}[t]{.45\linewidth}
     \includegraphics[width=\linewidth]{include/overlap.pdf}
     \caption{Overlapping Distributions} \label{fig:em_struggles_overlap}
   \end{subfigure}
-  \caption{This is a caption.}
+  \caption{Situations where the EM algorithm has convergence issues.}
   \label{fig:em_struggles}
 \end{figure}
 
@@ -205,7 +206,7 @@ Note that when $\beta = 0$ the posterior membership probabilities become uniform
 The hope is that, by initially optimizing over the smoothed version of the likelihood, local optima and saddle points can be avoided. Unfortunately, initial progress is much slower until $\beta$ gets close to 1, but by avoiding the slow convergence areas shown in Figure~\ref{fig:em_struggles} overall convergence is likely improved.
 
 
-\section{Simulated Annealing}
+\section{Simulated Annealing} \label{sec:simanneal}
 
 Simulated annealing is a stochastic optimization algorithm designed to find global optima in optimization problems with large state spaces \cite{kirkpatrickgelattvecchi83}. Consider the maximization problem
 \begin{equation*}
@@ -234,7 +235,6 @@ Plugging in the MLE estimates for $\theta_j$ conditional on $Z$, we therefore ca
 \begin{equation} \label{eq:sa_obj}
 f(Z) = \sum_{i=1}^n \sum_{j=1}^J \I(Z_i = j) \log P_j(X_i \cond \hat{\theta}_j)
 \end{equation}
-
 
 In order to implement simulated annealing to estimate mixture models, we must find a method of selecting new candidate realizations of $Z$. The implementation that adheres most closely to the traditional simulated annealing algorithm stated above randomly selects one observation and switches its membership. In this practice we found that the number of switches required to to achieve convergence made the method uncompetitive with existing algorithms. Instead, we will again draw inspiration from the EM algorithm in order to develop a simulated annealing approach that updates the entire dataset at once.
 
@@ -275,20 +275,76 @@ We propose a new algorithm that we call Stochastic EM (SEM). This is an implemen
     \end{enumerate}
   \item Cool the temperature $T_{k+1} = \alpha T_{k}$.
   \end{enumerate}
+\item Since the algorithm can accept worsening moves, return the function value and parameters associated with the best-so-far iteration $k^* = \argmin_{k} f(Z^{(k)})$.
 \end{enumerate}
 
-Comparing this to the regular EM algorithm, this is effectively a discrete, stochastic version. Instead of using the membership probabilities, SEM only allows for discrete memberships and randomly chooses memberships at each iteration using the estimated probabilities. Due to this inaccuracy, we expect that the SEM will lose some convergence speed relative to standard EM, but hope that its discrete and stochastic nature will help it avoid local optima and saddle points.
+Compared to the regular EM algorithm, this is effectively a discrete, stochastic version. Instead of using the membership probabilities, SEM only allows for discrete memberships and randomly chooses memberships at each iteration using the estimated probabilities. Due to this inaccuracy, we expect that the SEM will lose some convergence speed relative to standard EM, but hope that its discrete and stochastic nature will help it avoid local optima and saddle points.
 
 
-
-\section{Results}
+\section{Results} \label{sec:results}
 
 
 \subsection{Data Generation}
+
+We simulate data from a 3-component Gaussian mixture model to compare these methods with. In order to provide a more challenging optimization environment, we include significant overlap and somewhat unbalanced mixing coefficients.\footnote{In particular, we set $\mu_1 = (0, 2)'$, $\mu_2 = (2, 1)'$, $\mu_3 = (2, 3)'$; $\Sigma_1 = \begin{pmatrix} 1 & 0.1 \\ 0.1 & 0.3 \end{pmatrix}$, $\Sigma_2 = \begin{pmatrix} 1 & -0.1 \\ -0.1 & 1 \end{pmatrix}$, $\Sigma_3 = \begin{pmatrix} 0.5 & -0.5 \\ -0. & 1 \end{pmatrix}$; and $\pi_1 = 0.15$, $\pi_2 = 0.70$, $\pi_3 = 0.15$.} Figure~\ref{fig:sim_data} shows an example of $n=2000$ draws from our mixture model. The majority of our analysis will be run on this data set.
+
+\begin{figure}[htb] \centering
+  \includegraphics[width=.45\linewidth]{include/sim_data.pdf}
+  \caption{2000 draws from our 3-component Gaussian mixture model.}
+  \label{fig:sim_data}
+\end{figure}
+
+
 \subsection{Estimation}
+
+Figure~\ref{fig:algcomps} shows the results of EM, DAEM, and SEM runs using the same initial points for each algorithm.\footnote{SEM is estimated using an initial temperature of $T_0 = 100$ and a cooling schedule of $\alpha = 0.992$.} We can see that the EM algorithm is exhibiting the same issues described in Section~\ref{subsc:em_issues}, where the algorithm is caught in a slow-convergence area for a significant amount of time. As expected, DAEM has slower initial convergence but manages to avoid the slow-convergence area, and so has better overall convergence performance.
+
+\begin{figure}[htb] \centering
+  \begin{subfigure}[t]{.45\linewidth}
+    \includegraphics[width=\linewidth]{include/results_byiter.pdf}
+    \caption{By Iterations} \label{fig:algcomps_byiter}
+  \end{subfigure}
+  \begin{subfigure}[t]{.45\linewidth}
+    \includegraphics[width=\linewidth]{include/results_bytime.pdf}
+    \caption{By Time} \label{fig:algcomps_bytime}
+  \end{subfigure}
+  \caption{Convergence performance of EM, DAEM, and SEM on the dataset shown in Figure~\ref{fig:sim_data}, by both iteration number and processor time.}
+  \label{fig:algcomps}
+\end{figure}
+
+
+\begin{figure}[htb] \centering
+  \begin{subfigure}[t]{.45\linewidth}
+    \includegraphics[width=\linewidth]{include/sa_singlerun.pdf}
+    \caption{Single SEM Run} \label{fig:sa_singlerun}
+  \end{subfigure}
+  \begin{subfigure}[t]{.45\linewidth}
+    \includegraphics[width=\linewidth]{include/sa992.pdf}
+    \caption{Multiple SEM Runs} \label{fig:sa_multrun}
+  \end{subfigure}
+  \caption{SEM run examples. (\subref{fig:sa_singlerun}) compares the best-so-far log-likelihood to the log-likelihood of the current position. (\subref{fig:sa_multrun}) shows multiple SEM runs from the same initial values.}
+  \label{fig:sa}
+\end{figure}
+
+
 \subsection{Additional Simulations}
 
-\section{Conclusion}
+
+\begin{figure}[htb] \centering
+  \begin{subfigure}[t]{.45\linewidth}
+    \includegraphics[width=\linewidth]{include/avg_like_500.pdf}
+    \caption{$n=500$} \label{fig:sims_n500}
+  \end{subfigure}
+  \begin{subfigure}[t]{.45\linewidth}
+    \includegraphics[width=\linewidth]{include/avg_like_2000.pdf}
+    \caption{$n=2000$} \label{fig:sims_n2000}
+  \end{subfigure}
+  \caption{Average log-likelihood for each algorithm over 100 simulated datasets.}
+  \label{fig:sims}
+\end{figure}
+
+
+\section{Conclusion} \label{sec:conclusion}
 
 
 
