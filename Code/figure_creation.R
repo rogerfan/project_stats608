@@ -19,7 +19,7 @@ gplot_data = ggplot(data, aes(x=x1, y=x2, color=z)) +
     theme_bw() +
     theme(legend.position="none")
 
-pdf('./figures/sim_data.pdf', height=5, width=6, family='CM Roman')
+pdf('./figures/sim_data.pdf', height=4.5, width=6, family='CM Roman')
 print(gplot_data)
 dev.off()
 
