@@ -132,18 +132,6 @@ The most common method used to estimate parameters in this setting is the Expect
 In this paper, we explore other methods that attempt to mitigate EM's issues by borrowing techniques from other optimization paradigms. Simulated annealing \cite{kirkpatrickgelattvecchi83} is of particular interest to the authors of this paper. There have been several attempts to apply annealing-inspired algorithms to mixture model estimation. Most of these methods tend to mimic EM, but replace the traditional ``E-step'' with a computationally attractive alternative. Such methods seek to explore the state space without directly hill-climbing, and possibly in a non-deterministic matter. Exploring the entire state space hopefully allows the algorithm to avoid local maxima and converge to a global maxima. The most notable algorithm is Deterministic Annealing EM (DAEM), proposed by Ueda and Nakano in 1998 \cite{uedanakano98}. As the name suggests, this algorithm replaces the stochastic nature of simulated annealing with a deterministic variant to hopefully avoid the local optima problem. Additionally, we propose a stochastic version of EM (SEM) and show that it is competitive with existing methods.
 
 
-\section{Settings Where EM struggles}
-
-Before we discuss the algorithms for estimating mixture models in section \ref{sec:algos}, we briefly describe settings where EM struggles. \cite{uedanakano98} show that when clusters have a lot of overlap, convergence of EM tends to be much slower than when clusters are well separated in the data space. Unfortunately, interesting problems are generally those with a lot of overlap, since unsupervised learning problems are much more difficult in these settings. Additionally, \cite{uedanakano98} showed that when mixing probabilities are unbalanced, meaning the data come predominantly from one class, EM can be slow to converge as well. In figure we see two comparisons that support \cite{uedanakano98} findings.
-
-
-\begin{figure}[ht]
-   \centering
-   \includegraphics[width=.5\textwidth]{kitten.png}
-   \label{em}
-   \caption{EM is slower under these settings...}
-\end{figure}
-
 \section{Previous Algorithms} \label{sec:algos}
 
 
@@ -184,6 +172,26 @@ To estimate this model, we can use the EM algorithm as follows:
 \end{enumerate}
 
 
+\subsection{Issues with EM}
+
+Despite its power and ubiquity, the EM algorithm is known to struggle in several common scenarios. Ueda and Nakano show that when clusters have a lot of overlap, convergence of EM tends to be much slower than when clusters are well separated in the data space \cite{uedanakano98}. Unfortunately, interesting problems are generally those with a lot of overlap, since unsupervised learning problems are much more difficult in these settings. Additionally, Naim and Gildea show that when mixing probabilities are unbalanced, meaning the data come predominantly from one class, EM can be very slow to converge as well \cite{naimgildea12}.
+
+Figure~\ref{fig:em_struggles} shows some simple comparisons that support these results. When the mixing components are unbalanced or there are significantly overlapping distributions, the EM algorithm tends to get stuck in slow-convergence areas, likely near saddle points, that are not as much of an issue in the easier settings. In both of these cases the EM algorithm eventually escapes and converges to the maximum, but the convergence rate is severely effected.
+
+\begin{figure}[htb] \centering
+  \begin{subfigure}[t]{.49\linewidth}
+    \includegraphics[width=\linewidth]{include/unbal_mix.pdf}
+    \caption{Unbalanced Mixing} \label{fig:em_struggles_unbal}
+  \end{subfigure}
+  \begin{subfigure}[t]{.49\linewidth}
+    \includegraphics[width=\linewidth]{include/overlap.pdf}
+    \caption{Overlapping Distributions} \label{fig:em_struggles_overlap}
+  \end{subfigure}
+  \caption{This is a caption.}
+  \label{fig:em_struggles}
+\end{figure}
+
+
 \subsection{Deterministic Annealing}
 
 Ueda and Nakano proposed a modification of the EM algorithm that they call Deterministic Annealing Expectation Maximization (DAEM) \cite{uedanakano98}. This algorithm is inspired by both simulated annealing and the EM algorithm, and introduces an inverse temperature parameter $\beta$ that determines how ``smoothed'' the clusters are. The DAEM algorithm is the same as EM, except replacing Equation~\ref{eq:em_estep} (the E-step) with
@@ -193,6 +201,8 @@ Ueda and Nakano proposed a modification of the EM algorithm that they call Deter
   \end{equation}
 
 Note that when $\beta = 0$ the posterior membership probabilities become uniform, and when $\beta = 1$, we recover the standard EM algorithm. Generally we choose $\beta_0$ to be small, which does some smoothing between clusters, and allow $\beta_k \to 1$ as our iterations increase.
+
+The hope is that, by initially optimizing over the smoothed version of the likelihood, local optima and saddle points can be avoided. Unfortunately, initial progress is much slower until $\beta$ gets close to 1, but by avoiding the slow convergence areas shown in Figure~\ref{fig:em_struggles} overall convergence is likely improved.
 
 
 \section{Simulated Annealing}
