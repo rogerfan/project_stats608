@@ -354,15 +354,15 @@ Method            & SEM   & EM    & DAEM \\
 Average Distance  & 0.49  & 0.47  & 0.20 \\ 
    \hline
 \end{tabular}
-   \label{tab:mu_distance}
-   \caption{Average distance between true cluster means and estimates}
+\caption{Average distance between true cluster means and estimates}
+\label{tab:mu_distance}
 \end{table}
 
 To further explore the effectiveness of SEM, we compared all three optimization methods on 100 simulated datasets for varying sample sizes. Figure~\ref{fig:sims} shows the average log-likelihoods of each method for these simulations. We can see that, on average, SEM is competitive with or outperforms both EM and DAEM. DAEM in particular seems to perform worse for smaller data sets, but has competitive performance with larger sample sizes. Once again, we see that SEM might overfit the data, since it converges to a higher final log-likelihood. We are primarily interested in whether the algorithms can recover the true mixture means. To check to see if each algorithm did, over 100 runs, we calculated the average distance from each estimated cluster mean to true cluster mean. The results are found in table \ref{tab:mu_distance}, where we see that DAEM outperforms both EM and SEM at estimating mixture means. Perhaps more importantly, SEM performs comparably to EM, making it a competitive alternative for certain applications.
 
 \section{Conclusion} \label{sec:conclusion}
 
-This is the conclusion. Not yet it's not.
+Statisticians rely on so-called ``workhorse'' algorithms as the basis for much of their work, and make small adjustments when these reliable algorithms do not perform as well as they expect. This paper is one such attempt to modify the EM algorithm, usually one's first choice when estimating a mixture model. Generally reliable, its convergence slows when mixtures are unbalanced or overlapping. The literature is filled with modifications that help improve convergence by slightly modifying the traditional EM by attempting to counteract EM's tendency to converge to local optima.We have made a similar contribution by introducing a stochastic EM algorithm, which uses stochasticity to remove itself from local optima and converge more quickly to a global optima. Finally, we have shown that SEM is computationally competitive with other modified EM algorithms and estimates Gaussian mixture means well in practice.
 
 
 % \vfill
