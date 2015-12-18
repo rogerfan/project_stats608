@@ -126,7 +126,7 @@
 
 Mixture models are a common and powerful method for clustering and distribution estimation. Data is modeled as a ``mixture'' of multiple simple distributions, most often Gaussian, where the goal is to estimate the parameters of each distribution in the mixture. In clustering problems we receive observations without knowing to which cluster they belong, a type of unsupervised learning. Mixture membership can be modeled as a latent (unobserved) variable and the model evaluated under a likelihood framework. However, because the state space of this latent variable can be extremely large (for instance, for $n$ data points from a $k$-component mixture there are $k^n$ possible latent variable realizations), direct maximization of the likelihood is generally infeasible.
 
-The most common method used to estimate parameters in this setting is the Expectation-Maximization (EM) algorithm \cite{dempsterlairdrubin77}. The EM algorithm is an iterative optimization method used to optimize a lower bound on the likelihood. There are, however, several issues with using the EM algorithm even in this fairly simple case. Mixture models often have multiple local optima. Since EM is a hill-climbing algorithm, it may converge to a local optimum rather than a global optima \cite{wu83}. This makes EM sensitive to the chosen starting point, and various ad-hoc methods (such as multiple start or random restart) are used in practice to attempt to mitigate this issue. It can also be slow to converge in several scenarios, including when the mixing coefficients are imbalanced or when there is significant overlap in the component distributions.
+The most common method used to estimate parameters in this setting is the Expectation-Maximization (EM) algorithm \cite{dempsterlairdrubin77}. The EM algorithm is an iterative optimization method used to optimize a lower bound on the likelihood. There are, however, several issues with using the EM algorithm even in this fairly simple case. Mixture models often have multiple local optima. Since EM is a hill-climbing algorithm, it may converge to a local optimum rather than a global optima \cite{wu83}. This makes EM sensitive to the chosen starting point, and various ad-hoc methods (such as multiple start or random restart) are used in practice to attempt to mitigate this issue. EM can also be slow to converge in several scenarios, including when the mixing coefficients are unbalanced or there is significant overlap in the component distributions.
 
 In this paper, we explore other methods that attempt to mitigate EM's issues by borrowing techniques from other optimization paradigms. Simulated annealing \cite{kirkpatrickgelattvecchi83}, a stochastic method designed to find global optima in large state-spaces, is of particular interest. There have been several previous attempts to apply annealing-inspired algorithms to mixture model estimation. Most of these methods tend to mimic EM, but replace the traditional ``E-step'' with a computationally attractive alternative. Such methods seek to explore the state space without directly hill-climbing, and possibly in a non-deterministic matter. The goal is to avoid local maxima and converge to a global maxima. The most notable algorithm is Deterministic Annealing EM (DAEM), proposed by Ueda and Nakano in 1998 \cite{uedanakano98}. As the name suggests, this algorithm replaces the stochastic nature of simulated annealing with a deterministic variant to hopefully avoid the local optima problem.
 
@@ -177,7 +177,7 @@ To estimate this model, we can use the EM algorithm as follows:
 
 Despite its power and ubiquity, the EM algorithm is known to struggle in several common scenarios. Ueda and Nakano show that when clusters have a lot of overlap, convergence of EM tends to be much slower than when clusters are well separated in the data space \cite{uedanakano98}. Unfortunately, interesting problems are generally those with a lot of overlap, since unsupervised learning problems are much more difficult in these settings. Additionally, Naim and Gildea show that when mixing probabilities are unbalanced, meaning the data come predominantly from one class, EM can be very slow to converge as well \cite{naimgildea12}.
 
-Figure~\ref{fig:em_struggles} demonstrates the effects of these issues with some simple comparisons. When the mixing components are unbalanced or there are significantly overlapping distributions, the EM algorithm tends to get stuck in slow-convergence areas, likely near saddle points, that are not as much of an issue in the easier settings. In both of these cases the EM algorithm eventually escapes and converges to the maximum, but the convergence rate is severely effected.
+Figure~\ref{fig:em_struggles} demonstrates the effects of these issues with some simple comparisons. When the mixing components are unbalanced or there are significantly overlapping distributions (simulations represented by green lines), the EM algorithm tends to get stuck in slow-convergence areas, likely near saddle points. In the easier settings (red lines), the EM algorithm moves beyond saddle points much more quickly. In both of these cases the EM algorithm eventually escapes and converges to the maximum, but the convergence rate is severely effected.
 
 \begin{figure}[htb] \centering
   \begin{subfigure}[t]{.45\linewidth}
@@ -278,7 +278,7 @@ We propose a new algorithm that we call Stochastic EM (SEM). This is an implemen
 \item Since the algorithm can accept worsening moves, return the function value and parameters associated with the best-so-far iteration $k^* = \argmin_{k} f(Z^{(k)})$.
 \end{enumerate}
 
-Compared to the regular EM algorithm, this is effectively a discrete, stochastic version. Instead of using the membership probabilities, SEM only allows for discrete memberships and randomly chooses memberships at each iteration using the estimated probabilities. Due to this inaccuracy, we expect that the SEM will lose some convergence speed relative to standard EM, but hope that its discrete and stochastic nature will help it avoid local optima and saddle points.
+SEM is effectively a discrete, stochastic version of EM. Instead of using the membership probabilities, SEM only allows for discrete memberships and randomly chooses memberships at each iteration using the estimated probabilities. Due to this inaccuracy, we expect that the SEM will lose some convergence speed relative to standard EM, but hope that its discrete and stochastic nature will help it avoid local optima and saddle points.
 
 
 \section{Results} \label{sec:results}
@@ -297,7 +297,7 @@ We simulate data from a 3-component Gaussian mixture model to compare these meth
 
 \subsection{Simulation results}
 
-Figure~\ref{fig:algcomps} shows the results of EM, DAEM, and SEM runs using the same initial points for each algorithm.\footnote{SEM is estimated using an initial temperature of $T_0 = 100$ and a cooling schedule of $\alpha = 0.992$.} We can see that the EM algorithm is exhibiting the same issues described in Section~\ref{subsc:em_issues}, where the algorithm is caught in a slow-convergence area for a significant amount of time. As expected, DAEM has slower initial convergence but manages to avoid the slow-convergence area, and so has better overall convergence performance.
+Figure~\ref{fig:algcomps} shows the results of EM, DAEM, and SEM runs using the same initial parameter values for each algorithm.\footnote{SEM is estimated using an initial temperature of $T_0 = 100$ and a cooling schedule of $\alpha = 0.992$.} We see that the EM algorithm exhibits the same issues described in Section~\ref{subsc:em_issues}, where the algorithm is caught in a slow-convergence area for a significant number of iterations. As expected, DAEM has slower initial convergence due to exploration of the state space, but avoids slow-convergence areas, and has better overall convergence performance.
 
 \begin{figure}[htb] \centering
   \begin{subfigure}[t]{.45\linewidth}
@@ -312,7 +312,7 @@ Figure~\ref{fig:algcomps} shows the results of EM, DAEM, and SEM runs using the 
   \label{fig:algcomps}
 \end{figure}
 
-Stochastic EM seems to be fairly competitive with EM and DAEM, striking a middle point between the two. It attains the fast initial convergence of EM, but its stochastic nature allows it to escape the slow convergence area and more quickly improve after that. It also reaches a significantly higher final likelihood than either of the two other algorithms. Figure~\ref{fig:algcomps_bytime} shows how each of the algorithms performs against time. Stochastic EM adds some computation to each step, but is still competitive with the other two methods. All three algorithms have the same order of computational complexity per iteration.
+Stochastic EM seems to be fairly competitive with EM and DAEM, striking a middle point between the two. It attains the fast initial convergence of EM, but its stochastic nature allows it to escape potential slow convergence areas more quickly than regular EM. It also reaches a significantly higher final likelihood than either of the two other algorithms. Figure~\ref{fig:algcomps_bytime} shows how each of the algorithms performs against time. Stochastic EM adds some computation to each step, but is still competitive with the other two methods. All three algorithms have the same order of computational complexity per iteration.
 
 \begin{figure}[htb] \centering
   \begin{subfigure}[t]{.45\linewidth}
@@ -331,7 +331,7 @@ Figure~\ref{fig:sa_singlerun} shows how the likelihood of the current position (
 
 We must keep in mind, however, that SEM is a stochastic algorithm. Figure~\ref{fig:sa_multrun} shows 10 example SEM runs on this data set, each using the exact same initial values. The final likelihood for even the worst-case SEM run is similar to those attained by EM and DAEM, but there is significant spread in both the convergence speed and final values. With enough computational time and slow enough cooling the algorithm should attain similar final results, but its stochastic nature means that it may not be well-suited for some applications.
 
-\begin{figure}[htb] \centering
+\begin{figure}[hbt] \centering
   \begin{subfigure}[t]{.45\linewidth}
     \includegraphics[width=\linewidth]{include/avg_lik_500.pdf}
     \caption{$n=500$} \label{fig:sims_n500}
@@ -344,12 +344,25 @@ We must keep in mind, however, that SEM is a stochastic algorithm. Figure~\ref{f
   \label{fig:sims}
 \end{figure}
 
-To further explore the effectiveness of SEM, we compared all three optimization methods on 100 simulated datasets for varying sample sizes. Figure~\ref{fig:sims} shows the average log-likelihoods of eah method for these simulations. We can see that, on average, SEM is competitive with or outperforms both EM and DAEM. DAEM in particular seems to perform worse for smaller data sets, but has competitive performance with larger sample sizes.
 
+\begin{table}[hb]
+\centering
+\begin{tabular}{rrrr}
+  \hline
+Method            & SEM   & EM    & DAEM \\ 
+\hline
+Average Distance  & 0.49  & 0.47  & 0.20 \\ 
+   \hline
+\end{tabular}
+   \label{tab:mu_distance}
+   \caption{Average distance between true cluster means and estimates}
+\end{table}
+
+To further explore the effectiveness of SEM, we compared all three optimization methods on 100 simulated datasets for varying sample sizes. Figure~\ref{fig:sims} shows the average log-likelihoods of each method for these simulations. We can see that, on average, SEM is competitive with or outperforms both EM and DAEM. DAEM in particular seems to perform worse for smaller data sets, but has competitive performance with larger sample sizes. Once again, we see that SEM might overfit the data, since it converges to a higher final log-likelihood. We are primarily interested in whether the algorithms can recover the true mixture means. To check to see if each algorithm did, over 100 runs, we calculated the average distance from each estimated cluster mean to true cluster mean. The results are found in table \ref{tab:mu_distance}, where we see that DAEM outperforms both EM and SEM at estimating mixture means. Perhaps more importantly, SEM performs comparably to EM, making it a competitive alternative for certain applications.
 
 \section{Conclusion} \label{sec:conclusion}
 
-This is the conclusion.
+This is the conclusion. Not yet it's not.
 
 
 % \vfill
