@@ -289,7 +289,7 @@ SEM is effectively a discrete, stochastic version of EM. Instead of using the me
 We simulate data from a 3-component Gaussian mixture model to compare these methods with. In order to provide a more challenging optimization environment, we include significant overlap and somewhat unbalanced mixing coefficients.\footnote{In particular, we set $\mu_1 = (0, 2)'$, $\mu_2 = (2, 1)'$, $\mu_3 = (2, 3)'$; $\Sigma_1 = \begin{pmatrix} 1 & 0.1 \\ 0.1 & 0.3 \end{pmatrix}$, $\Sigma_2 = \begin{pmatrix} 1 & -0.1 \\ -0.1 & 1 \end{pmatrix}$, $\Sigma_3 = \begin{pmatrix} 0.5 & -0.5 \\ -0. & 1 \end{pmatrix}$; and $\pi_1 = 0.15$, $\pi_2 = 0.70$, $\pi_3 = 0.15$.} Figure~\ref{fig:sim_data} shows an example of $n=2000$ draws from our mixture model. The majority of our analysis will be run on this data set.
 
 \begin{figure}[t] \centering
-  \includegraphics[width=.6\linewidth]{include/sim_data.pdf}
+  \includegraphics[width=.45\linewidth]{include/sim_data.pdf}
   \caption{2000 draws from our 3-component Gaussian mixture model.}
   \label{fig:sim_data}
 \end{figure}
@@ -343,7 +343,6 @@ We must keep in mind, however, that SEM is a stochastic algorithm. Figure~\ref{f
   \caption{Average log-likelihood for each algorithm over 100 simulated datasets.}
   \label{fig:sims}
 \end{figure}
-
 
 % \begin{table}[hb]
 % \centering
