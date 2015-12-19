@@ -108,7 +108,7 @@
 
 \begin{document}
 
-\title{Annealing for Mixture Models\thanks{This work was done as a final project for Stats 608A (Fall 2015) at the University of Michigan, taught by Professor Ambuj Tewari. The source code used in this paper is available at \url{https://github.com/rogerfan/project_stats608}.}}
+\title{Annealing for Mixture Models\thanks{This work was done as a final project for Stats 608A (Fall 2015) at the University of Michigan, taught by Professor Ambuj Tewari. The code used in this paper is available at \url{https://github.com/rogerfan/stochasticEM} and has been open-sourced under the Mozilla Public License, version 2.0.}}
 \author{
   Joseph Dickens \\
   University of Michigan \\
@@ -124,7 +124,7 @@
 
 \section{Introduction} \label{sec:intro}
 
-Mixture models are a common and powerful method for clustering and distribution estimation. Data is modeled as a ``mixture'' of multiple simple distributions, most often Gaussian, where the goal is to estimate the parameters of each distribution in the mixture. In clustering problems we receive observations without knowing to which cluster they belong, a type of unsupervised learning. Mixture membership can be modeled as a latent (unobserved) variable and the model evaluated under a likelihood framework. However, because the state space of this latent variable can be extremely large (for instance, for $n$ data points from a $k$-component mixture there are $k^n$ possible latent variable realizations), direct maximization of the likelihood is generally infeasible.
+Mixture models are a common and powerful method for clustering and distribution estimation. Data is modeled as a ``mixture'' of multiple simple distributions, most often Gaussian, where the goal is to estimate the parameters of each distribution in the mixture. In clustering problems we receive observations without knowing to which cluster they belong, a type of unsupervised learning. In this clustering setting, the alternative goal is often to estimate to which distribution each observation ``belongs.'' Mixture membership can be modeled as a latent (unobserved) variable and the model evaluated under a likelihood framework. However, because the state space of this latent variable can be extremely large (for $n$ data points from a $k$-component mixture there are $k^n$ possible latent variable realizations), direct maximization of the likelihood is generally infeasible.
 
 The most common method used to estimate parameters in this setting is the Expectation-Maximization (EM) algorithm \cite{dempsterlairdrubin77}. The EM algorithm is an iterative optimization method used to optimize a lower bound on the likelihood. There are, however, several issues with using the EM algorithm even in this fairly simple case. Mixture models often have multiple local optima. Since EM is a hill-climbing algorithm, it may converge to a local optimum rather than a global optima \cite{wu83}. This makes EM sensitive to the chosen starting point, and various ad-hoc methods (such as multiple start or random restart) are used in practice to attempt to mitigate this issue. EM can also be slow to converge in several scenarios, including when the mixing coefficients are unbalanced or there is significant overlap in the component distributions.
 
@@ -149,7 +149,7 @@ Where $\pi_j$ are the mixing components, $P_j$ are the individual probability di
 Z &\dist \mt{Mult}(\pi_1, \dots, \pi_J) \\
 X \cond Z &\dist P_Z
 \end{align*}
-For simplicity, in this paper we will assume that the base distributions are multivariate Gaussian, so the parameters are $\theta_j = (\mu_j, \Sigma_j)$. Gaussian mixture models are by far the most commonly used in practice, but the algorithms and methods in this paper should all generalize to any base distributions.
+For simplicity, in this paper we will assume that the base distributions are multivariate Gaussian, so the parameters are $\theta_j = (\mu_j, \Sigma_j)$. Gaussian mixture models are by far the most commonly used in practice, but the algorithms and methods in this paper generalize to many base distributions.
 
 To estimate this model, we can use the EM algorithm as follows:
 \begin{enumerate}
@@ -175,9 +175,9 @@ To estimate this model, we can use the EM algorithm as follows:
 
 \subsection{Issues with EM} \label{subsc:em_issues}
 
-Despite its power and ubiquity, the EM algorithm is known to struggle in several common scenarios. Ueda and Nakano show that when clusters have a lot of overlap, convergence of EM tends to be much slower than when clusters are well separated in the data space \cite{uedanakano98}. Unfortunately, interesting problems are generally those with a lot of overlap, since unsupervised learning problems are much more difficult in these settings. Additionally, Naim and Gildea show that when mixing probabilities are unbalanced, meaning the data come predominantly from one class, EM can be very slow to converge as well \cite{naimgildea12}.
+Despite its power and ubiquity, the EM algorithm is known to struggle in several common scenarios. Ueda and Nakano show that when clusters have significant overlap, convergence of EM tends to be much slower than when clusters are well separated in the data space \cite{uedanakano98}. Unfortunately, interesting problems are generally those with overlap, since unsupervised learning problems are much more difficult in these settings. Additionally, Naim and Gildea show that when mixing probabilities are unbalanced, i.e. when one or more classes have small mixing coefficients, EM can be very slow to converge as well \cite{naimgildea12}.
 
-Figure~\ref{fig:em_struggles} demonstrates the effects of these issues with some simple comparisons. When the mixing components are unbalanced or there are significantly overlapping distributions (simulations represented by green lines), the EM algorithm tends to get stuck in slow-convergence areas, likely near saddle points. In the easier settings (red lines), the EM algorithm moves beyond saddle points much more quickly. In both of these cases the EM algorithm eventually escapes and converges to the maximum, but the convergence rate is severely effected.
+Figure~\ref{fig:em_struggles} demonstrates the effects of these issues with some simple comparisons. When the mixing components are unbalanced or there are significantly overlapping distributions, the EM algorithm tends to get stuck in slow-convergence areas, likely near saddle points. In the easier settings, the EM algorithm moves towards its limit much more quickly. In both of these cases the EM algorithm eventually escapes and converges to the maximum, but the convergence rate is severely effected.
 
 \begin{figure}[htb] \centering
   \begin{subfigure}[t]{.45\linewidth}
@@ -201,7 +201,7 @@ Ueda and Nakano proposed a modification of the EM algorithm that they call Deter
     = \frac{\left( \pi_j^{(k)} P_j(X_i \cond \mu_j^{(k)}, \Sigma_j^{(k)}) \right)^{\beta_k}}{\sum_{j'=1}^J \left( \pi_{j'}^{(k)} P_{j'}(X_i \cond \mu_{j'}^{(k)}, \Sigma_{j'}^{(k)}) \right)^{\beta_k}}
   \end{equation}
 
-Note that when $\beta = 0$ the posterior membership probabilities become uniform, and when $\beta = 1$, we recover the standard EM algorithm. Generally we choose $\beta_0$ to be small, which does some smoothing between clusters, and allow $\beta_k \to 1$ as our iterations increase.
+Note that when $\beta = 0$ the posterior membership probabilities become uniform, and when $\beta = 1$ we recover the standard EM algorithm. Generally we choose $\beta_0$ to be small, which does some smoothing between clusters, and allow $\beta_k \to 1$ as our iterations increase.
 
 % The hope is that, by initially optimizing over the smoothed version of the likelihood, local optima and saddle points can be avoided. Unfortunately, initial progress is much slower until $\beta$ gets close to 1, but by avoiding the slow convergence areas shown in Figure~\ref{fig:em_struggles} overall convergence is likely improved.
 
@@ -247,7 +247,7 @@ We propose a new algorithm that we call Stochastic EM (SEM). This is an implemen
 \item Iterate the following steps until a computing budget is met:
   \begin{enumerate}
   \item Estimate the membership probabilities $p_{ij}^{(k+1)}$ using the current parameter estimates $\mu_j^{(k)}$, $\Sigma_j^{(k)}$ and mixing components $\pi_j^{(k)}$. Note that this is the exact same calculation as Equation~\ref{eq:em_estep}, the E-step from the EM algorithm.
-  \item Randomly draw candidate memberships $\tilde{Z}=\left[\tilde{Z}_1,\ldots,\tilde{Z}_n\right]^T$ vector, where
+  \item Randomly draw candidate memberships $\tilde{Z} = (\tilde{Z}_1, \dots,\tilde{Z}_n)'$, where
     \begin{equation*}
     \tilde{Z}_i \dist \mt{Mult}\left(p_{i1}^{(k+1)}, \dots, p_{iJ}^{(k+1)}\right)
     \end{equation*}
@@ -289,7 +289,7 @@ SEM is effectively a discrete, stochastic version of EM. Instead of using the me
 We simulate data from a 3-component Gaussian mixture model to compare these methods with. In order to provide a more challenging optimization environment, we include significant overlap and somewhat unbalanced mixing coefficients.\footnote{In particular, we set $\mu_1 = (0, 2)'$, $\mu_2 = (2, 1)'$, $\mu_3 = (2, 3)'$; $\Sigma_1 = \begin{pmatrix} 1 & 0.1 \\ 0.1 & 0.3 \end{pmatrix}$, $\Sigma_2 = \begin{pmatrix} 1 & -0.1 \\ -0.1 & 1 \end{pmatrix}$, $\Sigma_3 = \begin{pmatrix} 0.5 & -0.5 \\ -0. & 1 \end{pmatrix}$; and $\pi_1 = 0.15$, $\pi_2 = 0.70$, $\pi_3 = 0.15$.} Figure~\ref{fig:sim_data} shows an example of $n=2000$ draws from our mixture model. The majority of our analysis will be run on this data set.
 
 \begin{figure}[t] \centering
-  \includegraphics[width=.45\linewidth]{include/sim_data.pdf}
+  \includegraphics[width=.6\linewidth]{include/sim_data.pdf}
   \caption{2000 draws from our 3-component Gaussian mixture model.}
   \label{fig:sim_data}
 \end{figure}
@@ -297,7 +297,7 @@ We simulate data from a 3-component Gaussian mixture model to compare these meth
 
 \subsection{Simulation results}
 
-Figure~\ref{fig:algcomps} shows the results of EM, DAEM, and SEM runs using the same initial parameter values for each algorithm.\footnote{SEM is estimated using an initial temperature of $T_0 = 100$ and a cooling schedule of $\alpha = 0.992$.} We see that the EM algorithm exhibits the same issues described in Section~\ref{subsc:em_issues}, where the algorithm is caught in a slow-convergence area for a significant number of iterations. As expected, DAEM has slower initial convergence due to exploration of the state space, but avoids slow-convergence areas, and has better overall convergence performance.
+Figure~\ref{fig:algcomps} shows the results of EM, DAEM, and SEM runs using the same initial parameter values for each algorithm.\footnote{SEM is estimated using an initial temperature of $T_0 = 100$ and a cooling schedule of $\alpha = 0.992$.} We see that the EM algorithm exhibits the same issues described in Section~\ref{subsc:em_issues}, where the algorithm is caught in a slow-convergence area for a significant number of iterations. As expected, DAEM has slower initial convergence due to the smoothing of membership probabilities, but avoids slow-convergence areas and has better overall convergence performance.
 
 \begin{figure}[htb] \centering
   \begin{subfigure}[t]{.45\linewidth}
@@ -312,7 +312,7 @@ Figure~\ref{fig:algcomps} shows the results of EM, DAEM, and SEM runs using the 
   \label{fig:algcomps}
 \end{figure}
 
-Stochastic EM seems to be fairly competitive with EM and DAEM, striking a middle point between the two. It attains the fast initial convergence of EM, but its stochastic nature allows it to escape potential slow convergence areas more quickly than regular EM. It also reaches a significantly higher final likelihood than either of the two other algorithms. Figure~\ref{fig:algcomps_bytime} shows how each of the algorithms performs against time. Stochastic EM adds some computation to each step, but is still competitive with the other two methods. All three algorithms have the same order of computational complexity per iteration.
+Stochastic EM seems to be fairly competitive with EM and DAEM, striking a middle point between the two. It attains the fast initial convergence of EM, but its stochastic nature allows it to escape the slow convergence area more quickly than regular EM. It also reaches a significantly higher final likelihood than either of the two other algorithms. Figure~\ref{fig:algcomps_bytime} shows how each of the algorithms performs against time. Stochastic EM adds some computation to each step, but is still competitive with the other two methods. All three algorithms have the same order of computational complexity per iteration.
 
 \begin{figure}[htb] \centering
   \begin{subfigure}[t]{.45\linewidth}
@@ -345,24 +345,27 @@ We must keep in mind, however, that SEM is a stochastic algorithm. Figure~\ref{f
 \end{figure}
 
 
-\begin{table}[hb]
-\centering
-\begin{tabular}{rrrr}
-  \hline
-Method            & SEM   & EM    & DAEM \\ 
-\hline
-Average Distance  & 0.49  & 0.47  & 0.20 \\ 
-   \hline
-\end{tabular}
-\caption{Average distance between true cluster means and estimates}
-\label{tab:mu_distance}
-\end{table}
+% \begin{table}[hb]
+% \centering
+% \begin{tabular}{rrrr}
+%   \hline
+% Method            & SEM   & EM    & DAEM \\
+% \hline
+% Average Distance  & 0.49  & 0.47  & 0.20 \\
+%    \hline
+% \end{tabular}
+% \caption{Average distance between true cluster means and estimates}
+% \label{tab:mu_distance}
+% \end{table}
 
-To further explore the effectiveness of SEM, we compared all three optimization methods on 100 simulated datasets for varying sample sizes. Figure~\ref{fig:sims} shows the average log-likelihoods of each method for these simulations. We can see that, on average, SEM is competitive with or outperforms both EM and DAEM. DAEM in particular seems to perform worse for smaller data sets, but has competitive performance with larger sample sizes. Once again, we see that SEM might overfit the data, since it converges to a higher final log-likelihood. We are primarily interested in whether the algorithms can recover the true mixture means. To check to see if each algorithm did, over 100 runs, we calculated the average distance from each estimated cluster mean to true cluster mean. The results are found in table \ref{tab:mu_distance}, where we see that DAEM outperforms both EM and SEM at estimating mixture means. Perhaps more importantly, SEM performs comparably to EM, making it a competitive alternative for certain applications.
+To further explore the effectiveness of SEM, we compared all three optimization methods on 100 simulated datasets for varying sample sizes. Figure~\ref{fig:sims} shows the average log-likelihoods of each method for these simulations. We can see that, on average, SEM is competitive with or outperforms both EM and DAEM. DAEM in particular seems to perform worse for smaller data sets, but has competitive performance with larger sample sizes. Once again, we see that SEM might overfit the data, since it converges to a higher final log-likelihood. We are primarily interested in whether the algorithms can recover the true mixture means.
+% To check to see if each algorithm did, over 100 runs, we calculated the average distance from each estimated cluster mean to true cluster mean. The results are found in Table~\ref{tab:mu_distance}, where we see that DAEM outperforms both EM and SEM at estimating mixture means. Perhaps more importantly, SEM performs comparably to EM, making it a competitive alternative for certain applications.
 
 \section{Conclusion} \label{sec:conclusion}
 
-Statisticians rely on so-called ``workhorse'' algorithms as the basis for much of their work, and make small adjustments when these reliable algorithms do not perform as well as they expect. This paper is one such attempt to modify the EM algorithm, usually one's first choice when estimating a mixture model. Generally reliable, its convergence slows when mixtures are unbalanced or overlapping. The literature is filled with modifications that help improve convergence by slightly modifying the traditional EM by attempting to counteract EM's tendency to converge to local optima.We have made a similar contribution by introducing a stochastic EM algorithm, which uses stochasticity to remove itself from local optima and converge more quickly to a global optima. Finally, we have shown that SEM is computationally competitive with other modified EM algorithms and estimates Gaussian mixture means well in practice.
+Expectation-Maximization and EM-based algorithms are some of the most common methods for estimating mixture models. Existing deterministic methods, however, struggle to optimize in some conditions. The non-convex nature of mixture model likelihoods means that local optima or saddle points can stop or significantly slow down optimization progress. In this paper, we introduce a novel algorithm for estimating mixture models that we call Stochastic EM. This algorithm applies simulated annealing principles to the EM algorithm to hopefully avoid these issues and achieve more consistent global optimization. We implement SEM for Gaussian mixture models and show that it is competitive with existing algorithms and often out-performs them on-average. There are some tradeoffs, but SEM seems to be a promising alternative algorithm for estimating mixture models.
+
+% Statisticians rely on so-called ``workhorse'' algorithms as the basis for much of their work, and make small adjustments when these reliable algorithms do not perform as well as they expect. This paper is one such attempt to modify the EM algorithm, usually one's first choice when estimating a mixture model. Generally reliable, its convergence slows when mixtures are unbalanced or overlapping. The literature is filled with modifications that help improve convergence by slightly modifying the traditional EM by attempting to counteract EM's tendency to converge to local optima.We have made a similar contribution by introducing a stochastic EM algorithm, which uses stochasticity to remove itself from local optima and converge more quickly to a global optima. Finally, we have shown that SEM is computationally competitive with other modified EM algorithms and estimates Gaussian mixture means well in practice.
 
 
 % \vfill
